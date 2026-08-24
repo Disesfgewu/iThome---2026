@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-TW"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mockview AI - 面試設定</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&amp;family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config injected from Style Guidance -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "inverse-surface": "#302f39",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "on-primary-fixed": "#0f0069",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffddb8",
+                    "secondary": "#006c49",
+                    "surface-container-highest": "#e4e1ed",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "primary-fixed": "#e2dfff",
+                    "secondary-container": "#6cf8bb",
+                    "on-tertiary-fixed": "#2a1700",
+                    "surface-container-high": "#eae6f3",
+                    "on-background": "#1b1b23",
+                    "surface-bright": "#fcf8ff",
+                    "background": "#fcf8ff",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-secondary-fixed": "#002113",
+                    "surface-dim": "#dbd8e4",
+                    "tertiary": "#684000",
+                    "on-primary": "#ffffff",
+                    "tertiary-container": "#885500",
+                    "inverse-primary": "#c3c0ff",
+                    "on-primary-container": "#dad7ff",
+                    "on-secondary-container": "#00714d",
+                    "surface-container": "#efecf8",
+                    "surface-variant": "#e4e1ed",
+                    "on-surface-variant": "#464555",
+                    "surface": "#fcf8ff",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#ffd4a4",
+                    "surface-tint": "#4d44e3",
+                    "on-secondary-fixed-variant": "#005236",
+                    "outline": "#777587",
+                    "outline-variant": "#c7c4d8",
+                    "primary": "#3525cd",
+                    "on-error": "#ffffff",
+                    "primary-container": "#4f46e5",
+                    "inverse-on-surface": "#f2effb",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1b1b23",
+                    "surface-container-lowest": "#ffffff",
+                    "secondary-fixed-dim": "#4edea3",
+                    "secondary-fixed": "#6ffbbe",
+                    "surface-container-low": "#f5f2fe",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "container-max": "1280px",
+                    "margin-desktop": "40px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "data-mono": [
+                            "JetBrains Mono"
+                    ],
+                    "headline-lg": [
+                            "Sora"
+                    ],
+                    "label-caps": [
+                            "JetBrains Mono"
+                    ],
+                    "display-lg": [
+                            "Sora"
+                    ],
+                    "headline-lg-mobile": [
+                            "Sora"
+                    ],
+                    "body-md": [
+                            "Sora"
+                    ]
+            },
+            "fontSize": {
+                    "data-mono": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "letterSpacing": "0.02em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "headline-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "display-lg": [
+                            "48px",
+                            {
+                                    "lineHeight": "56px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Custom Animations */
+        @keyframes scanVertical {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        
+        .mvScan {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #10b981, transparent);
+            box-shadow: 0 0 12px 2px rgba(16, 185, 129, 0.5);
+            animation: scanVertical 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+        }
+
+        /* Material Symbols utility */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Hide scrollbar for clean aesthetic */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md h-screen w-full flex overflow-hidden">
+<!-- 
+      ========================================
+      SideNavBar (Desktop)
+      ========================================
+    -->
+<nav class="hidden md:flex flex-col h-screen p-4 gap-4 docked left-0 w-64 bg-surface-container-low text-primary border-r border-surface-variant flex-shrink-0">
+<!-- Header -->
+<div class="flex items-center gap-3 mb-8 px-2 mt-4">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" data-icon="robot_2">robot_2</span>
+</div>
+<div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary leading-tight">Mockview AI</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant opacity-70">學術模擬面試系統</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-2 flex-grow">
+<!-- Active Tab: 面試設定 -->
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg font-bold transition-transform duration-200 ease-in-out hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined fill" data-icon="settings_accessibility" data-weight="fill">settings_accessibility</span>
+<span class="font-body-md text-body-md">面試設定</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="videocam">videocam</span>
+<span class="font-body-md text-body-md">實戰面試艙</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-body-md text-body-md">評測診斷報告</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-body-md text-body-md">歷次練習</span>
+</a>
+</div>
+<!-- CTA -->
+<div class="mt-auto">
+<button class="w-full py-3 px-4 bg-primary text-on-primary rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                開始新面試
+            </button>
+</div>
+</nav>
+<!-- 
+      ========================================
+      Main Content Area
+      ========================================
+    -->
+<main class="flex-1 h-screen overflow-y-auto hide-scrollbar bg-background flex flex-col relative">
+<!-- TopAppBar (Mobile Only - Fallback for Shell structure) -->
+<header class="md:hidden flex justify-between items-center w-full px-margin-mobile h-16 bg-surface text-primary border-b border-on-surface/10 sticky top-0 z-50">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary">Mockview AI</h1>
+<span class="material-symbols-outlined text-primary cursor-pointer" data-icon="menu">menu</span>
+</header>
+<!-- Canvas Container -->
+<div class="w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12 flex-grow flex flex-col">
+<div class="mb-12">
+<h2 class="font-display-lg text-display-lg text-on-surface tracking-tight mb-2">面試參數設定</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">系統將根據您設定的學系與面試官性格，結合您的個人履歷，動態生成高擬真學術面試題庫。</p>
+</div>
+<!-- 60/40 Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter flex-grow">
+<!-- Left Column (60%) - Configuration Forms -->
+<div class="lg:col-span-7 flex flex-col gap-8">
+<!-- Form Section: College Major -->
+<div class="bg-surface-container-lowest border border-on-surface/10 rounded-xl p-6">
+<label class="block font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="school" style="font-size: 18px;">school</span>
+                            目標申請學系
+                        </label>
+<div class="relative">
+<select class="w-full appearance-none bg-surface-container-low border border-outline-variant text-on-surface font-body-md text-body-md rounded-lg py-4 pl-4 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer">
+<option value="cs">資工系 (Computer Science)</option>
+<option value="med">醫學系 (Medicine)</option>
+<option value="ee">電機系 (Electrical Engineering)</option>
+<option value="ba">企管系 (Business Administration)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Form Section: Persona Selector Radio Cards -->
+<div class="bg-surface-container-lowest border border-on-surface/10 rounded-xl p-6">
+<label class="block font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="psychology" style="font-size: 18px;">psychology</span>
+                            AI 面試官性格模型
+                        </label>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Option 1: Strict -->
+<label class="relative flex flex-col p-5 cursor-pointer rounded-lg border-2 border-outline-variant hover:bg-surface-container-low transition-all">
+<input class="peer sr-only" name="persona" type="radio" value="strict"/>
+<!-- Checked state background/border styling -->
+<div class="absolute inset-0 rounded-lg border-2 border-transparent peer-checked:border-primary peer-checked:bg-primary/5 transition-all z-0 pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-2 h-full">
+<div class="flex justify-between items-start w-full">
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center mb-2">
+<span class="material-symbols-outlined" data-icon="gavel">gavel</span>
+</div>
+<!-- Active Indicator -->
+<div class="w-5 h-5 rounded-full border-2 border-outline-variant peer-checked:border-primary flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity">
+<div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+</div>
+</div>
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mt-1">嚴格審查型</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant mt-auto">高壓追問 / 壓力測試 / 邏輯漏洞探測</span>
+</div>
+</label>
+<!-- Option 2: Socratic (Checked by default) -->
+<label class="relative flex flex-col p-5 cursor-pointer rounded-lg border-2 border-outline-variant hover:bg-surface-container-low transition-all">
+<input checked="" class="peer sr-only" name="persona" type="radio" value="socratic"/>
+<div class="absolute inset-0 rounded-lg border-2 border-transparent peer-checked:border-primary peer-checked:bg-primary/5 transition-all z-0 pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-2 h-full">
+<div class="flex justify-between items-start w-full">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center mb-2">
+<span class="material-symbols-outlined" data-icon="lightbulb">lightbulb</span>
+</div>
+<div class="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center transition-opacity">
+<div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+</div>
+</div>
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mt-1">啟發引導型</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant mt-auto">循循善誘 / 深度挖掘 / 潛力評估</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Form Section: Question Count -->
+<div class="bg-surface-container-lowest border border-on-surface/10 rounded-xl p-6">
+<label class="block font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="list_alt" style="font-size: 18px;">list_alt</span>
+                            擬真題數設定
+                        </label>
+<div class="flex gap-4">
+<!-- Count: 3 -->
+<label class="cursor-pointer">
+<input class="peer sr-only" name="q_count" type="radio" value="3"/>
+<div class="w-16 h-12 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface font-data-mono text-data-mono peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary transition-colors hover:bg-surface-container-highest">
+                                    03
+                                </div>
+</label>
+<!-- Count: 5 (Default) -->
+<label class="cursor-pointer">
+<input checked="" class="peer sr-only" name="q_count" type="radio" value="5"/>
+<div class="w-16 h-12 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface font-data-mono text-data-mono peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary transition-colors hover:bg-surface-container-highest">
+                                    05
+                                </div>
+</label>
+<!-- Count: 8 -->
+<label class="cursor-pointer">
+<input class="peer sr-only" name="q_count" type="radio" value="8"/>
+<div class="w-16 h-12 flex items-center justify-center rounded-lg border border-outline-variant text-on-surface font-data-mono text-data-mono peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary transition-colors hover:bg-surface-container-highest">
+                                    08
+                                </div>
+</label>
+</div>
+</div>
+</div>
+<!-- Right Column (40%) - Drag & Drop and Mock Data -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<!-- Animated File Drag-and-Drop Area -->
+<div class="relative bg-surface-container border-2 border-dashed border-primary/50 rounded-xl p-8 flex flex-col items-center justify-center text-center overflow-hidden min-h-[240px] group transition-colors hover:bg-surface-container-high cursor-pointer">
+<!-- mvScan Effect overlaying the dropzone -->
+<div class="mvScan"></div>
+<!-- Background aesthetic - faint document icon -->
+<div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-[160px] text-primary" data-icon="description">description</span>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" data-icon="cloud_upload" style="font-size: 32px;">cloud_upload</span>
+</div>
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-2">上傳備審資料 (PDF)</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[200px]">拖曳檔案至此，或點擊瀏覽本機檔案。</p>
+<!-- Simulated uploaded file chip -->
+<div class="mt-6 flex items-center gap-2 bg-surface-container-lowest border border-outline-variant px-3 py-1.5 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="check_circle">check_circle</span>
+<span class="font-data-mono text-data-mono text-xs text-on-surface truncate max-w-[120px]">陳小明_資工系備審.pdf</span>
+</div>
+</div>
+</div>
+<!-- Mock Data: Extracted Profile State -->
+<div class="bg-surface-container-lowest border border-on-surface/10 rounded-xl overflow-hidden shadow-sm flex-grow flex flex-col">
+<div class="bg-surface-container-low px-5 py-3 border-b border-on-surface/10 flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="memory">memory</span>
+                                AI 即時解析摘要
+                            </span>
+<span class="flex items-center gap-1 font-data-mono text-[10px] text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="bolt">bolt</span>
+                                解析完成
+                            </span>
+</div>
+<div class="p-5 flex flex-col gap-5 bg-surface-bright flex-grow">
+<!-- Highlights -->
+<div>
+<h4 class="font-label-caps text-label-caps text-secondary flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-[16px]" data-icon="add_circle">add_circle</span>
+                                    技術亮點 (Highlights)
+                                </h4>
+<ul class="space-y-2">
+<li class="flex items-start gap-3 border-l-2 border-secondary/30 pl-3">
+<p class="font-data-mono text-data-mono text-on-surface">具備完整 Full-stack 專案開發經驗 (React/Node.js)，能獨立建置系統架構。</p>
+</li>
+<li class="flex items-start gap-3 border-l-2 border-secondary/30 pl-3">
+<p class="font-data-mono text-data-mono text-on-surface">參與過開源社群貢獻，展現對技術熱忱與社群協作能力。</p>
+</li>
+</ul>
+</div>
+<!-- Blindspots -->
+<div>
+<h4 class="font-label-caps text-label-caps text-error flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
+                                    潛在盲區 (Blindspots)
+                                </h4>
+<ul class="space-y-2">
+<li class="flex items-start gap-3 border-l-2 border-error/30 pl-3">
+<p class="font-data-mono text-data-mono text-on-surface opacity-90">專案描述偏重實作成果，缺乏對底層演算法原理深度的探討。</p>
+</li>
+<li class="flex items-start gap-3 border-l-2 border-error/30 pl-3">
+<p class="font-data-mono text-data-mono text-on-surface opacity-90">團隊領導或跨域溝通經驗著墨較少，可能成為面試官深挖焦點。</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom CTA Section -->
+<div class="mt-8 pt-6 border-t border-on-surface/10 flex justify-end">
+<button class="bg-primary-container text-on-primary font-headline-lg-mobile text-headline-lg-mobile font-bold px-10 py-4 rounded-xl hover:bg-primary transition-all shadow-md flex items-center gap-3 transform hover:-translate-y-1 active:translate-y-0 active:scale-95 group">
+                    🚀 啟動模擬面試艙
+                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</main>
+<script>
+        // Simple vanilla JS for interactive feel (optional, just for completeness of the UI demo)
+        document.querySelectorAll('label[class*="border-2"]').forEach(label => {
+            const radio = label.querySelector('input[type="radio"]');
+            if(radio) {
+                radio.addEventListener('change', (e) => {
+                    // Logic is handled purely by CSS peer-checked classes for styling,
+                    // but we could hook up complex state updates here if needed.
+                    console.log(`Persona selected: ${e.target.value}`);
+                });
+            }
+        });
+    </script>
+</body></html>

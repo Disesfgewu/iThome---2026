@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-TW">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>評測診斷報告 | Mockview</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "inverse-surface": "#302f39",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "on-primary-fixed": "#0f0069",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffddb8",
+                        "secondary": "#006c49",
+                        "surface-container-highest": "#e4e1ed",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "primary-fixed": "#e2dfff",
+                        "secondary-container": "#6cf8bb",
+                        "on-tertiary-fixed": "#2a1700",
+                        "surface-container-high": "#eae6f3",
+                        "on-background": "#1b1b23",
+                        "surface-bright": "#fcf8ff",
+                        "background": "#fcf8ff",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-secondary-fixed": "#002113",
+                        "surface-dim": "#dbd8e4",
+                        "tertiary": "#684000",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#885500",
+                        "inverse-primary": "#c3c0ff",
+                        "on-primary-container": "#dad7ff",
+                        "on-secondary-container": "#00714d",
+                        "surface-container": "#efecf8",
+                        "surface-variant": "#e4e1ed",
+                        "on-surface-variant": "#464555",
+                        "surface": "#fcf8ff",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#ffd4a4",
+                        "surface-tint": "#4d44e3",
+                        "on-secondary-fixed-variant": "#005236",
+                        "outline": "#777587",
+                        "outline-variant": "#c7c4d8",
+                        "primary": "#3525cd",
+                        "on-error": "#ffffff",
+                        "primary-container": "#4f46e5",
+                        "inverse-on-surface": "#f2effb",
+                        "on-error-container": "#93000a",
+                        "on-surface": "#1b1b23",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed-dim": "#4edea3",
+                        "secondary-fixed": "#6ffbbe",
+                        "surface-container-low": "#f5f2fe",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "margin-desktop": "40px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "data-mono": ["JetBrains Mono"],
+                        "headline-lg": ["Sora"],
+                        "label-caps": ["JetBrains Mono"],
+                        "display-lg": ["Sora"],
+                        "headline-lg-mobile": ["Sora"],
+                        "body-md": ["Sora"]
+                    },
+                    "fontSize": {
+                        "data-mono": ["14px", { "lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "fontWeight": "700" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+
+        /* Level 1 Card Elevation */
+        .card-level-1 {
+            background-color: #ffffff;
+            border: 1px solid rgba(12, 12, 20, 0.08);
+        }
+
+        /* Accordion transition */
+        .accordion-content {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s ease-out;
+        }
+
+        .accordion-item.active .accordion-content {
+            grid-template-rows: 1fr;
+        }
+
+        .accordion-inner {
+            overflow: hidden;
+        }
+
+        .accordion-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .accordion-item.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-background font-body-md text-body-md antialiased flex h-screen overflow-hidden">
+    <!-- SideNavBar (Desktop) -->
+    <aside
+        class="hidden md:flex flex-col h-screen p-4 gap-4 bg-surface-container-low border-r border-surface-container w-64 docked left-0 z-20 shrink-0">
+        <div class="flex items-center gap-3 px-2 py-4 mb-4">
+            <img alt="AI面試官" class="w-10 h-10 rounded-full object-cover border border-outline-variant/30"
+                data-alt="A minimalist and sleek artificial intelligence avatar icon, utilizing geometric shapes and a modern blue and white color palette, flat design style, professional."
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhiPNYEu1acq9Ws-tCRdEV6VeDmH7k6EKFCdn9D9_kAvZWjYGARHqJ2blNEYpbW5U5ItRI5r7MN-1Kya5vmsGevyeTGpv6vB6-q2Og-gj6-BCqcTtHQkyJYP0zRxtNXXhIrpSvhYqdGA_AdsIWR9UWokoQt6UcpSzIcUWQNHwnnStKuPS6LX02WwYX2XaSoxOuauQppM62zJu8CuYly9ySVGmYLxHbMnR6Gk54ky7LVNRAkZWTEsB-" />
+            <div>
+                <h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary tracking-tight">Mockview AI</h1>
+                <p class="font-label-caps text-label-caps text-on-surface-variant mt-1 uppercase tracking-wider">
+                    學術模擬面試系統</p>
+            </div>
+        </div>
+        <button
+            class="w-full bg-primary-container text-on-primary font-body-md text-body-md font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 mb-4 hover:opacity-90 transition-opacity">
+            <span class="material-symbols-outlined icon-fill">add</span>
+            開始新面試
+        </button>
+        <nav class="flex-1 flex flex-col gap-2">
+            <!-- 面試設定 -->
+            <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out hover:bg-primary/10 group"
+                href="#">
+                <span
+                    class="material-symbols-outlined group-hover:text-primary transition-colors">settings_accessibility</span>
+                <span class="font-body-md text-body-md font-medium">面試設定</span>
+            </a>
+            <!-- 實戰面試艙 -->
+            <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out hover:bg-primary/10 group"
+                href="#">
+                <span class="material-symbols-outlined group-hover:text-primary transition-colors">videocam</span>
+                <span class="font-body-md text-body-md font-medium">實戰面試艙</span>
+            </a>
+            <!-- 評測診斷報告 (Active) -->
+            <a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg transition-transform duration-200 ease-in-out shadow-sm border border-primary/10"
+                href="#">
+                <span class="material-symbols-outlined icon-fill">analytics</span>
+                <span class="font-body-md text-body-md font-semibold">評測診斷報告</span>
+            </a>
+            <!-- 歷次練習 -->
+            <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-transform duration-200 ease-in-out hover:bg-primary/10 group"
+                href="#">
+                <span class="material-symbols-outlined group-hover:text-primary transition-colors">history</span>
+                <span class="font-body-md text-body-md font-medium">歷次練習</span>
+            </a>
+        </nav>
+    </aside>
+    <!-- Main Workspace -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <!-- TopAppBar -->
+        <header
+            class="bg-surface flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 border-b border-on-surface/10 shrink-0 docked full-width top-0 z-10">
+            <!-- Mobile Menu & Title -->
+            <div class="flex items-center gap-4 md:hidden">
+                <button
+                    class="text-on-surface-variant p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <span
+                    class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary tracking-tight">Mockview</span>
+            </div>
+            <!-- Desktop Nav Links (As requested by JSON layout, though somewhat redundant with SideNav, maintaining structural integrity) -->
+            <nav class="hidden md:flex gap-6 h-full items-end">
+                <a class="text-on-surface-variant hover:text-primary transition-colors pb-4 font-body-md text-body-md"
+                    href="#">面試設定</a>
+                <a class="text-on-surface-variant hover:text-primary transition-colors pb-4 font-body-md text-body-md"
+                    href="#">實戰面試艙</a>
+                <a class="text-primary font-bold border-b-2 border-primary pb-4 font-body-md text-body-md flex items-center gap-1"
+                    href="#">評測診斷報告</a>
+                <a class="text-on-surface-variant hover:text-primary transition-colors pb-4 font-body-md text-body-md"
+                    href="#">歷次練習</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <span
+                    class="hidden sm:inline-block font-data-mono text-data-mono text-secondary px-3 py-1 bg-secondary-container/20 rounded-full border border-secondary/20">
+                    <span class="inline-block w-2 h-2 rounded-full bg-secondary mr-2 mb-[1px]"></span>系統就緒
+                </span>
+                <button
+                    class="w-8 h-8 rounded-full border border-outline-variant overflow-hidden hover:opacity-80 transition-opacity scale-95 active:opacity-80">
+                    <img alt="用戶頭像" class="w-full h-full object-cover"
+                        data-alt="A professional headshot of a user, modern clean lighting, corporate style, neutral background, looking confidently at the camera."
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvzIQSN7NbIvyqOlaV09f4LKSqOlcOGQkqfLdSpdPRYcuF2LdWKA8MoRSfSPgW0fzbt3DEHiZjgsu38rAIGEC_2FS1h4qGoUqy5OnappHubQu_rZE22Vz-ZuiS2m--UVeZx9K1W9IS-tRdxaGjOdXbldqtmNaJIeAZ6Fj9562ghSTCItGcxe4UA977J04O2411wY1Z2rQkvGXsr_waaV2dB9lBrI90b_z2be1N-VayGKLlVbkWZdzq" />
+                </button>
+            </div>
+        </header>
+        <!-- Scrollable Canvas -->
+        <main class="flex-1 overflow-y-auto pb-24 relative bg-background">
+            <div
+                class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12 w-full flex flex-col gap-6 md:gap-8">
+                <!-- Page Header -->
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-2">
+                    <div>
+                        <p class="font-data-mono text-data-mono text-on-surface-variant mb-2">SESSION ID: MV-20231024-X9
+                        </p>
+                        <h2 class="font-display-lg text-display-lg text-on-background tracking-tight">評測診斷報告</h2>
+                    </div>
+                    <div class="flex gap-3">
+                        <button
+                            class="px-4 py-2 rounded border border-outline text-on-surface font-body-md text-body-md hover:bg-surface-variant transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined">download</span>
+                            下載 PDF 診斷書
+                        </button>
+                    </div>
+                </div>
+                <!-- Top Section: Score & Summary -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Score Badge -->
+                    <div
+                        class="lg:col-span-4 card-level-1 rounded-xl p-6 md:p-8 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                        <!-- Decorative background element -->
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10"></div>
+                        <div
+                            class="inline-block mb-4 px-3 py-1 rounded-full bg-secondary-container/30 border border-secondary/20 font-label-caps text-label-caps text-secondary-fixed-variant tracking-widest uppercase">
+                            Overall Grade
+                        </div>
+                        <div class="flex items-baseline justify-center gap-4 mb-2">
+                            <div
+                                class="font-display-lg text-display-lg text-primary text-6xl md:text-7xl font-bold tracking-tighter">
+                                84</div>
+                            <div class="font-headline-lg text-headline-lg text-on-surface-variant">/ 100</div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4">
+                            <span
+                                class="px-4 py-1.5 rounded bg-primary text-on-primary font-headline-lg-mobile text-headline-lg-mobile font-bold">A-</span>
+                            <span class="font-body-md text-body-md text-on-surface">表現優異，具備錄取潛力</span>
+                        </div>
+                    </div>
+                    <!-- Executive Summary -->
+                    <div class="lg:col-span-8 card-level-1 rounded-xl p-6 md:p-8 flex flex-col justify-center">
+                        <h3
+                            class="font-headline-lg-mobile text-headline-lg-mobile font-semibold mb-4 flex items-center gap-2 border-l-4 border-primary pl-3">
+                            <span class="material-symbols-outlined text-primary">summarize</span>
+                            執行摘要
+                        </h3>
+                        <p class="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-6">
+                            該候選人在本次學術模擬面試中展現了穩健的專業知識基礎（Domain
+                            Knowledge）與良好的邏輯推演能力（Logic）。在回答關於機器學習演算法的複雜問題時，能夠清晰地拆解步驟。然而，在面臨預期外的壓力測試題時，應變能力（Adaptability）稍顯不足，且在非技術性溝通（Communication）中，語氣略顯急促，缺乏適當的停頓。
+                        </p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-auto">
+                            <div class="border-t border-outline-variant/30 pt-3">
+                                <p class="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">面試時長
+                                </p>
+                                <p class="font-data-mono text-data-mono text-on-surface">45:20</p>
+                            </div>
+                            <div class="border-t border-outline-variant/30 pt-3">
+                                <p class="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">總題數
+                                </p>
+                                <p class="font-data-mono text-data-mono text-on-surface">8 題</p>
+                            </div>
+                            <div class="border-t border-outline-variant/30 pt-3">
+                                <p class="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">語速
+                                    (WPM)</p>
+                                <p class="font-data-mono text-data-mono text-on-surface">142</p>
+                            </div>
+                            <div class="border-t border-outline-variant/30 pt-3">
+                                <p class="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">眼神接觸
+                                </p>
+                                <p class="font-data-mono text-data-mono text-secondary">88% (優)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Middle Section: Radar & Insights -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Radar Chart -->
+                    <div class="lg:col-span-5 card-level-1 rounded-xl p-6 flex flex-col">
+                        <h3 class="font-headline-lg-mobile text-headline-lg-mobile font-semibold mb-6">核心維度分析</h3>
+                        <div
+                            class="flex-1 relative w-full aspect-square max-w-[320px] mx-auto flex items-center justify-center">
+                            <canvas class="absolute inset-0 w-full h-full" id="radarCanvas"></canvas>
+                        </div>
+                        <div class="flex justify-center gap-4 mt-4">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-sm bg-primary opacity-80"></span>
+                                <span class="font-label-caps text-label-caps text-on-surface-variant">本次表現</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-sm border border-outline border-dashed"></span>
+                                <span class="font-label-caps text-label-caps text-on-surface-variant">錄取基準線</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Strengths & Targets -->
+                    <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <!-- Key Strengths -->
+                        <div class="card-level-1 rounded-xl p-6 border-l-4 border-l-secondary">
+                            <h3
+                                class="font-headline-lg-mobile text-headline-lg-mobile font-semibold mb-4 flex items-center gap-2 text-on-surface">
+                                <span class="material-symbols-outlined text-secondary">verified</span>
+                                關鍵優勢 (Strengths)
+                            </h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start gap-3">
+                                    <span
+                                        class="material-symbols-outlined text-secondary shrink-0 mt-0.5 text-[20px]">check_circle</span>
+                                    <div>
+                                        <h4 class="font-body-md text-body-md font-semibold text-on-surface mb-1">技術深度紮實
+                                        </h4>
+                                        <p class="font-body-md text-body-md text-on-surface-variant text-sm">
+                                            對於資料結構的底層邏輯解釋清晰，無致命性觀念錯誤。</p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span
+                                        class="material-symbols-outlined text-secondary shrink-0 mt-0.5 text-[20px]">check_circle</span>
+                                    <div>
+                                        <h4 class="font-body-md text-body-md font-semibold text-on-surface mb-1">架構化思維
+                                        </h4>
+                                        <p class="font-body-md text-body-md text-on-surface-variant text-sm">
+                                            回答情境題時，能主動運用總分總架構，層次分明。</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- Improvement Targets -->
+                        <div
+                            class="card-level-1 rounded-xl p-6 border-l-4 border-l-tertiary-fixed-dim bg-surface-bright">
+                            <h3
+                                class="font-headline-lg-mobile text-headline-lg-mobile font-semibold mb-4 flex items-center gap-2 text-on-surface">
+                                <span
+                                    class="material-symbols-outlined text-tertiary-fixed-dim icon-fill">lightbulb</span>
+                                待加強項目 (Targets)
+                            </h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start gap-3">
+                                    <span
+                                        class="material-symbols-outlined text-tertiary shrink-0 mt-0.5 text-[20px]">target</span>
+                                    <div>
+                                        <h4 class="font-body-md text-body-md font-semibold text-on-surface mb-1">壓力下語速控制
+                                        </h4>
+                                        <p class="font-body-md text-body-md text-on-surface-variant text-sm">
+                                            在面對不懂的追問時，語速明顯加快，顯露緊張情緒。</p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span
+                                        class="material-symbols-outlined text-tertiary shrink-0 mt-0.5 text-[20px]">target</span>
+                                    <div>
+                                        <h4 class="font-body-md text-body-md font-semibold text-on-surface mb-1">缺乏 STAR
+                                            法則實踐</h4>
+                                        <p class="font-body-md text-body-md text-on-surface-variant text-sm">
+                                            行為面試題中，未能具體量化過去經驗的成果 (Result)。</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <!-- Bottom Section: Turn-by-Turn Accordions -->
+                <div class="mt-4">
+                    <h3 class="font-headline-lg text-headline-lg font-semibold mb-6 text-on-background">對答覆盤與改善建議
+                        (Turn-by-Turn)</h3>
+                    <!-- Accordion Item 1 -->
+                    <div class="accordion-item card-level-1 rounded-xl mb-4 transition-all duration-300">
+                        <button
+                            class="w-full text-left p-5 md:p-6 flex items-center justify-between focus:outline-none hover:bg-surface-variant/30 transition-colors"
+                            onclick="this.parentElement.classList.toggle('active')">
+                            <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                <span
+                                    class="font-data-mono text-data-mono text-outline px-2 py-0.5 bg-surface-container rounded text-sm">Q1</span>
+                                <span
+                                    class="font-headline-lg-mobile text-headline-lg-mobile font-semibold text-on-surface">請描述一次你解決困難技術問題的經驗？</span>
+                            </div>
+                            <span
+                                class="material-symbols-outlined accordion-icon text-outline-variant shrink-0">expand_more</span>
+                        </button>
+                        <div class="accordion-content bg-surface-bright border-t border-outline-variant/20">
+                            <div class="accordion-inner p-5 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <!-- Left Column: Original & Weakness -->
+                                <div class="flex flex-col gap-6">
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-3">
+                                            <span
+                                                class="material-symbols-outlined text-outline text-[18px]">record_voice_over</span>
+                                            <h4
+                                                class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+                                                原始回答 (Transcript)</h4>
+                                        </div>
+                                        <div
+                                            class="p-4 rounded-lg bg-surface border border-outline-variant/30 font-body-md text-body-md text-on-surface text-sm leading-relaxed relative">
+                                            「有一次我們在做專案的時候，資料庫連線一直出錯。因為時間很趕，我就去查了很多 stackoverflow 的文章，然後發現是一個 config
+                                            設定錯誤。我把它改過來之後系統就正常了，後來老師也覺得這部分修得很快。」
+                                            <div
+                                                class="absolute left-0 top-0 bottom-0 w-1 bg-outline-variant/50 rounded-l-lg">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-3">
+                                            <span
+                                                class="material-symbols-outlined text-error text-[18px]">troubleshoot</span>
+                                            <h4
+                                                class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+                                                AI 弱點分析</h4>
+                                        </div>
+                                        <ul
+                                            class="space-y-2 list-disc list-inside font-body-md text-body-md text-on-surface-variant text-sm">
+                                            <li><strong class="font-semibold text-on-surface">缺乏背景細節：</strong>
+                                                未說明專案的規模與影響性。</li>
+                                            <li><strong class="font-semibold text-on-surface">行動過於平淡：</strong>
+                                                「查文章」無法突顯解決問題的系統性思維。</li>
+                                            <li><strong class="font-semibold text-on-surface">無量化成果：</strong>
+                                                修復後對系統效能或專案進度的具體貢獻不明。</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <!-- Right Column: STAR Sample -->
+                                <div
+                                    class="card-level-1 rounded-lg border-l-4 border-l-primary p-0 overflow-hidden h-fit shadow-sm">
+                                    <div
+                                        class="bg-surface-container-low px-4 py-3 border-b border-outline-variant/20 flex items-center gap-2">
+                                        <span
+                                            class="material-symbols-outlined text-primary icon-fill">auto_awesome</span>
+                                        <h4 class="font-body-md text-body-md font-bold text-primary">高分示範 (STAR 結構重構)
+                                        </h4>
+                                    </div>
+                                    <div class="divide-y divide-outline-variant/10 font-body-md text-body-md text-sm">
+                                        <div class="grid grid-cols-[80px_1fr] p-3 hover:bg-primary/5 transition-colors">
+                                            <div
+                                                class="font-data-mono text-data-mono font-bold text-on-surface-variant pt-0.5">
+                                                S (情境)</div>
+                                            <div class="text-on-surface">在期末的大型電商模擬專案中，上線前 48 小時系統遭遇突發性的資料庫連線池枯竭，導致 50%
+                                                請求超時。</div>
+                                        </div>
+                                        <div class="grid grid-cols-[80px_1fr] p-3 hover:bg-primary/5 transition-colors">
+                                            <div
+                                                class="font-data-mono text-data-mono font-bold text-on-surface-variant pt-0.5">
+                                                T (任務)</div>
+                                            <div class="text-on-surface">我負責緊急排查並恢復系統穩定度，確保能在 deadline 前順利展示。</div>
+                                        </div>
+                                        <div class="grid grid-cols-[80px_1fr] p-3 hover:bg-primary/5 transition-colors">
+                                            <div
+                                                class="font-data-mono text-data-mono font-bold text-on-surface-variant pt-0.5">
+                                                A (行動)</div>
+                                            <div class="text-on-surface">我首先檢視系統日誌定位瓶頸，發現是 ORM N+1
+                                                查詢導致的資源耗盡。我重構了核心查詢語句，並引入 Redis 快取高頻讀取資料。</div>
+                                        </div>
+                                        <div class="grid grid-cols-[80px_1fr] p-3 hover:bg-primary/5 transition-colors">
+                                            <div
+                                                class="font-data-mono text-data-mono font-bold text-on-surface-variant pt-0.5">
+                                                R (結果)</div>
+                                            <div class="text-on-surface">修復後，API 回應時間從平均 2 秒下降至 200 毫秒，系統吞吐量提升 3
+                                                倍，最終專案獲得全班最高分。</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Accordion Item 2 (Closed by default to show variation) -->
+                    <div class="accordion-item card-level-1 rounded-xl mb-4 transition-all duration-300">
+                        <button
+                            class="w-full text-left p-5 md:p-6 flex items-center justify-between focus:outline-none hover:bg-surface-variant/30 transition-colors"
+                            onclick="this.parentElement.classList.toggle('active')">
+                            <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                <span
+                                    class="font-data-mono text-data-mono text-outline px-2 py-0.5 bg-surface-container rounded text-sm">Q2</span>
+                                <span
+                                    class="font-headline-lg-mobile text-headline-lg-mobile font-semibold text-on-surface">如果團隊成員強烈反對你的技術提案，你會怎麼做？</span>
+                            </div>
+                            <span
+                                class="material-symbols-outlined accordion-icon text-outline-variant shrink-0">expand_more</span>
+                        </button>
+                        <div class="accordion-content bg-surface-bright border-t border-outline-variant/20">
+                            <div class="accordion-inner p-5 md:p-6">
+                                <!-- Placeholder for second item content -->
+                                <p class="text-on-surface-variant italic text-center py-4">詳細對答與分析載入中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Footer Actions -->
+                <div class="mt-8 pt-6 border-t border-outline-variant/30 flex justify-end gap-4">
+                    <button
+                        class="px-6 py-2.5 rounded-lg border border-outline text-on-surface font-body-md text-body-md font-semibold hover:bg-surface-variant transition-colors flex items-center gap-2">
+                        重新挑戰本輪
+                    </button>
+                    <button
+                        class="px-6 py-2.5 rounded-lg bg-primary-container text-on-primary font-body-md text-body-md font-semibold hover:bg-primary transition-colors flex items-center gap-2 shadow-sm">
+                        <span class="material-symbols-outlined icon-fill">arrow_forward</span>
+                        前往下一關卡
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <!-- Radar Chart Drawing Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('radarCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Adjust canvas for crisp rendering on high DPI displays
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.scale(2, 2);
+
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = Math.min(centerX, centerY) - 40;
+
+            const labels = ['Logic (邏輯)', 'Domain (專業)', 'Communication (溝通)', 'Adaptability (應變)'];
+            const data = [0.85, 0.90, 0.70, 0.65]; // User scores
+            const baseline = [0.75, 0.75, 0.75, 0.75]; // Baseline scores
+
+            const numSides = 4;
+            const angleStep = (Math.PI * 2) / numSides;
+            const offset = -Math.PI / 2; // Start from top
+
+            function drawPolygon(values, strokeColor, fillColor, isDashed = false) {
+                ctx.beginPath();
+                for (let i = 0; i < numSides; i++) {
+                    const value = values[i];
+                    const r = radius * value;
+                    const x = centerX + r * Math.cos(angleStep * i + offset);
+                    const y = centerY + r * Math.sin(angleStep * i + offset);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+
+                if (fillColor) {
+                    ctx.fillStyle = fillColor;
+                    ctx.fill();
+                }
+
+                if (isDashed) {
+                    ctx.setLineDash([5, 5]);
+                } else {
+                    ctx.setLineDash([]);
+                }
+
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw grid Web
+            ctx.strokeStyle = '#e4e1ed'; // surface-variant
+            ctx.lineWidth = 1;
+            for (let j = 1; j <= 5; j++) {
+                drawPolygon([j / 5, j / 5, j / 5, j / 5], '#e4e1ed', null);
+            }
+
+            // Draw axes & Labels
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#464555'; // on-surface-variant
+            ctx.font = '500 12px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i < numSides; i++) {
+                const x = centerX + radius * Math.cos(angleStep * i + offset);
+                const y = centerY + radius * Math.sin(angleStep * i + offset);
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+
+                // Labels
+                const labelR = radius + 20;
+                const lx = centerX + labelR * Math.cos(angleStep * i + offset);
+                const ly = centerY + labelR * Math.sin(angleStep * i + offset);
+                ctx.fillText(labels[i], lx, ly);
+            }
+
+            // Draw Baseline
+            drawPolygon(baseline, '#777587', null, true); // outline
+
+            // Draw Data
+            // primary: #3525cd, primary with opacity for fill
+            drawPolygon(data, '#3525cd', 'rgba(53, 37, 205, 0.15)');
+
+            // Draw Data Points
+            ctx.fillStyle = '#3525cd';
+            for (let i = 0; i < numSides; i++) {
+                const r = radius * data[i];
+                const x = centerX + r * Math.cos(angleStep * i + offset);
+                const y = centerY + r * Math.sin(angleStep * i + offset);
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        // Open first accordion by default
+        document.querySelector('.accordion-item').classList.add('active');
+    </script>
+</body>
+
+</html>
