@@ -87,19 +87,6 @@ class RAGRetrieverService:
 
 ---
 
-## 4. Pytest 自動化測試驗證數據
-
-```text
-tests/test_rag_service.py::test_candidate_profile_model_structured_text PASSED               [ 25%]
-tests/test_rag_service.py::test_full_resume_candidate_profile_vectorization PASSED            [ 50%]
-tests/test_rag_service.py::test_rag_similarity_search_retrieval_with_candidate_profile PASSED [ 75%]
-tests/test_rag_service.py::test_end_to_end_rag_question_generation_with_full_candidate_profile PASSED [100%]
-
-============================== 4 passed in 26.14s ==============================
-```
-
----
-
 ## 結語與明天預告
 
 今天我們完成了涵蓋 **8 大核心履歷面向** 的全方位 RAG 檢索器與 User 資料向量化比對服務。

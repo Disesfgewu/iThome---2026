@@ -94,20 +94,6 @@ Live Integration Test Completed Successfully!
 
 ---
 
-## 4. Pytest 自動化測試驗證數據
-
-```text
-tests/test_gemma_llm.py::test_gemma_llm_client_initialization PASSED                               [ 20%]
-tests/test_gemma_llm.py::test_async_system_prompt_loading_with_transcript_placeholders PASSED      [ 40%]
-tests/test_gemma_llm.py::test_security_guardrail_prompt_injection_blocking PASSED                 [ 60%]
-tests/test_gemma_llm.py::test_security_guardrail_academic_cybersecurity_passing PASSED             [ 80%]
-tests/test_gemma_llm.py::test_async_invoke_with_system_prompt_and_transcript PASSED                [100%]
-
-====================== 5 passed in 22.55s =======================
-```
-
----
-
 ## 結語與明天預告
 
 今天我們完成了專屬 **Gemma-4-31B-it** LLM Chat Client 客戶端，整合了非同步 System Prompt 載入器與資安與隱私過濾器。

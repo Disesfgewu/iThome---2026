@@ -12,7 +12,7 @@
 
 ### B. 去識別化 (De-identification) 策略
 - **解耦學校綁定：** 資料庫紀錄去除具體大專院校名稱（`school`），改為通用開放題目。
-- **維持四大關鍵維度：** 題庫精確綁定 **`department_group` (目標學群)**、**`department` (目標學系)**、**`question_category` (通用型 vs 技術專業型)** 以及 **`difficulty_level` (標準題 / 進階專業題 / 高難度申論題)**。
+- **維護核心維度綁定：** 題庫精確綁定 **`department_group` (目標學群)**、**`department` (目標學系)**、**`question_category` (通用型 vs 技術專業型)** 以及 **`difficulty_level` (標準題 / 進階專業題 / 高難度申論題)**。
 
 ### C. 去識別化 JSON DB 格式 Schema 範例 (`app/db/interview_questions_db.json`)
 
@@ -91,19 +91,6 @@ Processing Range: Index 0 to 999 (Items 1 ~ 1000)
 [EMBED q_0002] Progress [2/1000] Computed 3072-dim vector for '請說明你在高中自主...'
 --> [Checkpoint Saved] Disk updated with 50 newly embedded items.
 ```
-
----
-
-## 4. Pytest 自動化測試驗證數據
-
-執行 `pytest tests/test_repository.py` 驗證結果：
-
-```text
-tests/test_repository.py .... [100%]
-4 passed in 29.77s
-```
-
-證實去識別化 Repository Function 運作無誤，完美達成資料庫安全隔離與 3072 維度向量快速檢索！
 
 ---
 

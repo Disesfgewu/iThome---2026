@@ -105,26 +105,6 @@ Day 10 Multimodal PDF Test Completed Successfully!
 
 ---
 
-## 4. 個資資安保護與 Pytest 驗證數據 (`tests/test_day10_pdf_parser.py`)
-
-在 `.gitignore` 寫入規則：
-```text
-# PII Privacy Protection
-test_files/
-*.pdf
-```
-
-執行 `pytest tests/test_day10_pdf_parser.py -v` 驗證結果：
-
-```text
-tests/test_day10_pdf_parser.py::test_pdf_multimodal_extraction_with_fallback PASSED          [ 50%]
-tests/test_day10_pdf_parser.py::test_multimodal_gemma_resume_analysis_with_fallback PASSED   [100%]
-
-====================== 2 passed in 35.12s =======================
-```
-
----
-
 ## 結語與明天預告
 
 今天我們完成了 **PDF 多模態視覺圖表與文字前處理服務 (`PDFParserService`)**，成功讓 Gemma 4 具備閱讀學生真實 PDF 備審、提取 10 個內嵌圖表元件與精準剖析亮點盲點的能力，並完成了個資資安 `.gitignore` 隔離與全篇去識別化脫敏保護！

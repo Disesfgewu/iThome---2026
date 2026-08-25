@@ -110,17 +110,6 @@ class GemmaLLMClient(BaseChatModel):
 
 ---
 
-## 4. Pytest 自動化測試驗證數據
-
-```text
-tests/test_day9_resilient_gemma.py::test_token_estimation_and_truncation PASSED [ 50%]
-tests/test_day9_resilient_gemma.py::test_resilient_gemma_client_retries_and_stream PASSED [100%]
-
-======================= 2 passed in 54.67s =======================
-```
-
----
-
 ## 結語與明天預告
 
 今天我們完成了 Gemma LLM Client 客戶端的 **429 指數退避重試**、**TokenContextGuard 滑動視窗動態截斷** 與 **非同步 Token 串流**。
