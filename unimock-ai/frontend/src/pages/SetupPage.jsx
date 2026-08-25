@@ -32,7 +32,8 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
       targetGroup,
       targetMajor,
       persona,
-      qCount
+      qCount,
+      sessionData.extractedProfile
     );
 
     setSessionData((prev) => ({

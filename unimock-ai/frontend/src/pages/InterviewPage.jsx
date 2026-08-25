@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WaveformBar from '../components/WaveformBar';
-import { respondInterviewApi } from '../api/realApi';
+import { respondInterviewApi, getReportApi } from '../api/realApi';
 import { checkSchoolTier } from '../api/mockApi';
 
 export default function InterviewPage({ sessionData, setSessionData, onFinishInterview }) {
@@ -25,24 +25,24 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
 
   // Streaming typewriter effect for question
   useEffect(() => {
-    if (!currentQ) return;
+    if (!currentQ || !currentQ.text) return;
     setDisplayedQuestion('');
     let i = 0;
     const interval = setInterval(() => {
       if (i < currentQ.text.length) {
-        setDisplayedQuestion((prev) => prev + currentQ.text.charAt(i));
         i++;
+        setDisplayedQuestion(currentQ.text.slice(0, i));
       } else {
         clearInterval(interval);
       }
-    }, 35);
+    }, 20);
     return () => clearInterval(interval);
   }, [currentIdx, currentQ]);
 
   const toggleRecording = () => {
     if (!isRecording) {
       setIsRecording(true);
-      setCandidateAnswer('針對這個問題，我們當時主要面臨的是記憶體 VRAM 競爭與推論超時...');
+      setCandidateAnswer('教授您好，我在高中時期主導開發了基於 OpenCV 的智慧邊緣影像辨識系統，成功將推論延遲降低至 45ms，並應用於校內自走車避障專案獲得全國資訊競賽佳作。');
     } else {
       setIsRecording(false);
     }
@@ -52,29 +52,67 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
     if (!candidateAnswer.trim()) return;
     setIsSubmitting(true);
 
-    const res = await respondInterviewApi(sessionData.sessionId, currentIdx, candidateAnswer);
-    
-    // Save to dialogue history
-    setSessionData((prev) => ({
-      ...prev,
-      dialogueHistory: [
-        ...prev.dialogueHistory,
-        {
-          turn: currentIdx + 1,
-          phase: currentQ.phase,
-          question: currentQ.text,
-          answer: candidateAnswer
+    try {
+      const res = await respondInterviewApi(sessionData.sessionId, currentIdx, candidateAnswer);
+      
+      const nextTurnNumber = currentIdx + 2;
+      let nextPhase = "專案細節深挖與架構設計";
+      if (currentIdx + 1 === 1) {
+        nextPhase = "專案經歷與架構設計";
+      } else if (currentIdx + 1 === 2) {
+        nextPhase = "核心技術與情境問答";
+      } else if (currentIdx + 1 >= 3) {
+        nextPhase = "總結反思與學習潛能";
+      }
+
+      setSessionData((prev) => {
+        const updatedHistory = [
+          ...prev.dialogueHistory,
+          {
+            turn: currentIdx + 1,
+            phase: currentQ.phase,
+            question: currentQ.text,
+            answer: candidateAnswer
+          }
+        ];
+
+        const updatedQuestions = [...prev.questions];
+        if (!res.isFinished && res.nextQuestion) {
+          updatedQuestions.push({
+            index: nextTurnNumber,
+            phase: nextPhase,
+            text: res.nextQuestion,
+            hint: "著重底層原理、問題分析與具體優化成效！"
+          });
         }
-      ]
-    }));
 
-    setCandidateAnswer('');
-    setIsSubmitting(false);
+        return {
+          ...prev,
+          dialogueHistory: updatedHistory,
+          questions: updatedQuestions
+        };
+      });
 
-    if (res.isFinished || currentIdx + 1 >= sessionData.questions.length) {
-      onFinishInterview();
-    } else {
-      setCurrentIdx((prev) => prev + 1);
+      setCandidateAnswer('');
+      setIsSubmitting(false);
+
+      if (res.isFinished || (currentIdx + 1 >= (sessionData.questionCount || 3))) {
+        try {
+          const reportRes = await getReportApi(sessionData.sessionId);
+          setSessionData((prev) => ({
+            ...prev,
+            evaluationReport: reportRes
+          }));
+        } catch (err) {
+          console.warn("Report generation error:", err);
+        }
+        onFinishInterview();
+      } else {
+        setCurrentIdx((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error("Submit error:", err);
+      setIsSubmitting(false);
     }
   };
 

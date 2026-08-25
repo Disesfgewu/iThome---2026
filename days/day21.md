@@ -1,6 +1,6 @@
 # 【Day 21】前後端完整串接：FastAPI × React 即時對話引擎實戰
 
-第四階段正式開工！今天我們將前 20 天精心建立的 **FastAPI 後端**與 **React 前端 UI** 進行完整的 HTTP RESTful API 串接，實現 PDF 履歷上傳、RAG 問題生成與即時問答的全鏈路對接。
+第四階段正式開工！今天我們將前 20 天精心建立的 **FastAPI 後端**與 **React 前端 UI** 進行完整的 HTTP RESTful API 串接，實現 PDF 履歷上傳、RAG 問題生成與即時問答的全鏈路連動，並透過 Agent-Eye 實機啟動測試與截圖記錄。
 
 ---
 
@@ -12,9 +12,10 @@ React Frontend (Vite, port 5173)
          │  fetch() / JSON / FormData
          ▼
 FastAPI Backend (Uvicorn, port 8000)
-    ├── POST /api/resume/upload-pdf   ← PDF 解析 + Gemma-4 多模態分析
-    ├── POST /api/interview/setup     ← RAG 出題 + Session 建立
-    └── POST /api/interview/answer   ← 語意評估 + 動態追問生成
+    ├── POST /api/resume/upload-pdf   ← PDF 解析 + 多模態特徵提取
+    ├── POST /api/interview/setup     ← 向量檢索出題 (RAG) + Session 初始化
+    ├── POST /api/interview/answer   ← Socratic 追問生成 + STAR 狀態機推進
+    └── POST /api/reports/generate   ← 四維度戰略評估診斷書產出
 ```
 
 ---
@@ -24,39 +25,73 @@ FastAPI Backend (Uvicorn, port 8000)
 ```javascript
 const API_BASE_URL = 'http://localhost:8000/api';
 
-// 1. 上傳 PDF 備審
+// 1. 上傳 PDF 備審履歷
 export async function uploadResumeApi(file, targetSchool, targetGroup, targetMajor) {
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('target_school', targetSchool);
-  formData.append('target_major', targetMajor);
+  if (file) formData.append('file', file);
+  formData.append('target_school', targetSchool || '');
+  formData.append('target_major', targetMajor || '');
+
   const res = await fetch(`${API_BASE_URL}/resume/upload-pdf`, {
-    method: 'POST', body: formData
+    method: 'POST',
+    body: formData
   });
   const data = await res.json();
-  return { fileName: file.name, background: data.candidate_profile?.autobiography || '' };
+  return {
+    fileName: file ? file.name : '',
+    targetSchool,
+    targetGroup,
+    targetMajor,
+    background: data.candidate_profile?.autobiography || '',
+    rawProfile: data.candidate_profile
+  };
 }
 
 // 2. 啟動面試（RAG 出第一題）
-export async function startInterviewApi(sessionId, targetSchool, targetGroup, targetMajor) {
+export async function startInterviewApi(sessionId, targetSchool, targetGroup, targetMajor, persona, questionCount, extractedProfile) {
+  const payload = {
+    target_school: targetSchool || '',
+    target_major: targetMajor || '',
+    interview_mode: persona === 'strict' ? '頂大嚴謹模式' : '標準二階面試',
+    candidate_profile: extractedProfile?.rawProfile || {
+      applicant_name: '',
+      high_school: '',
+      autobiography: extractedProfile?.background || ''
+    }
+  };
+
   const res = await fetch(`${API_BASE_URL}/interview/setup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_school: targetSchool, target_major: targetMajor })
+    body: JSON.stringify(payload)
   });
   const data = await res.json();
-  return { sessionId: data.session_id, firstQuestion: data.first_question };
+  return {
+    sessionId: data.session_id,
+    firstQuestion: data.first_question,
+    phase: '破冰自述與專業動機'
+  };
 }
 
-// 3. 提交回答（追問生成）
+// 3. 提交回答（Socratic 追問生成）
 export async function respondInterviewApi(sessionId, currentIdx, answer) {
+  const payload = {
+    session_id: sessionId,
+    user_answer: answer
+  };
+
   const res = await fetch(`${API_BASE_URL}/interview/answer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sessionId, user_answer: answer })
+    body: JSON.stringify(payload)
   });
   const data = await res.json();
-  return { nextQuestion: data.is_finished ? null : data.next_question, isFinished: data.is_finished };
+  return {
+    sessionId: data.session_id,
+    nextQuestion: data.is_finished ? null : data.next_question,
+    isFinished: data.is_finished,
+    nextIndex: currentIdx + 1
+  };
 }
 ```
 
@@ -64,7 +99,7 @@ export async function respondInterviewApi(sessionId, currentIdx, answer) {
 
 ## 3. 跨域 CORS 配置確認
 
-後端 `app/main.py` 允許前端源跨域呼叫：
+確保後端 `app/main.py` 允許前端源進行跨域呼叫：
 
 ```python
 app.add_middleware(
@@ -79,101 +114,92 @@ app.add_middleware(
 
 ## 4. Gemma-4-31B 輸出品質修正
 
-### 4.1 問題診斷：Chain-of-Thought 思考鏈洩漏
+### 4.1 問題診斷：Chain-of-Thought (思考鏈) 洩漏
+Gemma-4-31B 在推理過程中，會輸出 markdown bullet list（`* Role: ...`、`* Draft: ...`）等思維鏈內容。這導致前端 UI 偶爾會收到未過濾的思考片段。
 
-Gemma-4-31B 在 thinking mode 下會輸出完整的推理過程（markdown bullet list `*   Role: ...`），然後才輸出真正的問題。這導致前端顯示出英文亂碼的「推理腳本」而非中文面試題。
-
-**根本原因**：
-1. `prompt_manager.py` — 當 template kwargs 有缺失 key 時，直接 fallback 到含 markdown heading 的 raw template
-2. `response_generation.md` — 存在未填充的 `{user_answer}` placeholder 觸發 KeyError
-3. LLM 無 user_input trigger — 系統提示 only，LLM 自由推理
-
-### 4.2 修正措施
-
-**`gemma_llm.py` — 新增 `_strip_thinking_blocks()`**：
-
-```python
-def _strip_thinking_blocks(self, text: str) -> str:
-    """
-    Strategy 1: 嘗試去除 <think>...</think> XML tags
-    Strategy 2: 逐行從尾部掃描，返回最後一個非 bullet / 非英文 metadata 的中文句子
-    Strategy 3: 段落掃描 fallback
-    """
-```
-
-**`prompt_manager.py` — 修正 template 填充**：
-
-```python
-# 自動偵測所有 {placeholder}，缺失的填 ''，不再 fallback 到 raw template
-placeholders = re.findall(r'\{(\w+)\}', clean_template)
-fill_kwargs = {p: kwargs.get(p, '') for p in placeholders}
-return clean_template.format(**fill_kwargs)
-```
-
-**`rag_service.py` — 加入明確的 trigger user_input**：
-
-```python
-generated_question = await gemma_client.invoke_with_system_prompt(
-    prompt_name="question_generation",
-    user_input="請根據以上面試情境與學生背景，直接輸出一道繁體中文面試問題，不要任何說明文字。",
-    ...
-)
-```
+### 4.2 修正方案
+1. **`gemma_llm.py`**：新增 `_strip_thinking_blocks()`，從尾部解析出最後一句完整的繁體中文問句，徹底去除所有推導清單與 XML tags。
+2. **`prompt_manager.py`**：自動安全填補 template 中的 `{placeholder}`，並濾除 markdown `#` 標題行，避免 prompt 結構損壞。
+3. **`InterviewPage.jsx`**：改進打字機效果渲染，採用 `currentQ.text.slice(0, i)` 切片計數，防止 React StrictMode 下字元重複堆疊。
 
 ---
 
-## 5. End-to-End 串接驗證結果
+## 5. 實機操作連動截圖紀錄 (Agent-Eye 實測)
 
-透過 Python 測試腳本對 FastAPI 進行真實 API 呼叫，驗證完整對話流程：
+### 步驟 1：面試參數與志願設定（乾淨空狀態）
+進入 `http://localhost:5173/`，左側設定目標學校「國立臺灣大學」與學系「資訊工程學系」，右側履歷備審檔案呈現乾淨初始狀態：
 
-### 測試腳本 API 呼叫序列
-1. `POST /api/interview/setup` — 建立面試 Session + RAG 出題
-2. `POST /api/interview/answer` — 提交回答 + 動態追問
-
-### 實測輸出
-
-**Session 建立**：
-- `session_id`: `sess_2d5e5ecf09`
-- `stage`: `INTRO`
-- `rag_seed_questions_count`: 0（向量庫匹配結果）
-
-**第一題（Gemma-4-31B 動態生成）**：
-> 你在開發機器學習圖形辨識專案時，選擇了特定的模型架構，請問你是基於什麼考量？此外，如果在實際應用中發現辨識準確率不如預期，你會從哪些維度（例如資料集、超參數或模型結構）去進行分析與優化？
-
-**學生作答**：
-> 教授好，我在高中時期開發了一個基於 OpenCV 的邊緣偵測系統，利用 Canny 演算法將圖像前處理速度提升 3 倍，並成功應用於校內機器人競賽的視覺辨識模組，最終獲得全國第一名。
-
-**動態追問（PORTFOLIO_DEEP_DIVE 階段）**：
-> 拿到全國第一名的成績確實非常出色，看得出你在實作層面有很強的執行力。不過，你剛才提到的 Canny 演算法主要屬於影像前處理階段，我想進一步了解，在經過前處理之後，你後續使用了什麼樣的模型架構來進行最終的「辨識」？此外，針對該模型，你當時是如何調整參數或優化結構，以確保在競賽環境中能達到理想的準確率？
-
-✅ **狀態機正確推進**：`INTRO → PORTFOLIO_DEEP_DIVE`  
-✅ **繁體中文輸出正確**  
-✅ **Socratic 追問具深度**  
-✅ **Turn Count: 2**（正確計數）
+![面試參數設定頁面](images/day21/day21_setup_page.png)
 
 ---
 
-## 6. 修改檔案清單
+### 步驟 2：上傳 PDF 備審檔案與多模態解析
+上傳 PDF 備審履歷（如 `sample_resume.pdf`），系統自動調用 `/api/resume/upload-pdf` 完成多模態結構化分析：
 
-| 檔案 | 修改內容 |
-|---|---|
-| `frontend/src/api/realApi.js` | 新增完整的 upload / setup / answer / report API 串接 |
-| `app/services/gemma_llm.py` | 新增 `_strip_thinking_blocks()` 過濾 Chain-of-Thought |
-| `app/services/prompt_manager.py` | 修正 template 填充 + 去除 markdown heading |
-| `app/services/rag_service.py` | 新增明確的 user_input trigger |
-| `app/routers/interview.py` | 追問 user_prompt 加入輸出格式指令 |
-| `docs/system_prompts/question_generation.md` | 加入繁體中文輸出指令 |
-| `docs/system_prompts/response_generation.md` | 移除 `{user_answer}` placeholder，加入中文指令 |
+![PDF 備審履歷上傳解析完成](images/day21/day21_pdf_uploaded.png)
+
+![履歷亮點與潛在盲區分析](images/day21/day21_pdf_highlights.png)
+
+---
+
+### 步驟 3：點擊「🚀 啟動模擬面試艙」
+滑動至頁面底端，點擊啟動按鈕，前端將結構化履歷與志願參數發送至 `/api/interview/setup`：
+
+![啟動模擬面試艙按鈕](images/day21/day21_launch_button.png)
+
+---
+
+### 步驟 4：AI 考官動態第一題生成（破冰自述與專業動機）
+後端向量資料庫與 Gemma-4-31B 生成針對資訊工程學系的專屬中文面試考題：
+
+![AI 考官動態第一題](images/day21/day21_first_question.png)
+
+> **AI 教授發問內容**：  
+> 「請分享一個你在學習或實作專案過程中所克服的重大困難。請具體說明該問題的本質是什麼？你當時採取了哪些具體的解決策略與方法？最後又獲得了什麼樣的量化成果或自我成長？」
+
+---
+
+### 步驟 5：考生輸入作答內容
+在回答區域填入考生的 STAR 結構化作答（以邊緣運算與 OpenCV 專案為例）：
+
+![考生作答輸入](images/day21/day21_answer_entered.png)
+
+> **考生作答**：  
+> 「教授您好，我在高中時期主導開發了基於 OpenCV 的智慧邊緣影像辨識系統，成功將推論延遲降低至 45ms，並應用於校內自走車避障專案獲得全國資訊競賽佳作。」
+
+---
+
+### 步驟 6：提交作答與 Socratic 深度追問
+點擊「確認送出回答」，後端 `/api/interview/answer` 接收回答，狀態機推進至 `PORTFOLIO_DEEP_DIVE`（專案經歷與架構設計），Gemma-4-31B 針對考生作答中的技術細節展開精準追問：
+
+![AI 考官 Socratic 深度追問](images/day21/day21_followup_question.png)
+
+> **AI 教授深度追問**：  
+> 「你在競賽中取得佳績並有效降低延遲值得肯定。不過，在邊緣端進行影像運算時，硬體資源通常非常受限。我想進一步了解，你在使用 OpenCV 優化演算法時，具體採取了哪些技術手段（例如模型量化、記憶體管理或多執行緒平行化）來達成 45ms 的目標？過程中又遇到了哪些硬體層面的瓶頸？」
+
+---
+
+## 6. 修改與新增檔案清單
+
+| 檔案 | 類型 | 說明 |
+|---|---|---|
+| `frontend/src/api/realApi.js` | 新增 | 前後端真實 HTTP RESTful API Client |
+| `frontend/src/pages/SetupPage.jsx` | 修改 | 連接真實 PDF 上傳與啟動面試 API |
+| `frontend/src/pages/InterviewPage.jsx` | 修改 | 即時回答送出、動態問題堆疊與打字機修正 |
+| `frontend/src/pages/ReportPage.jsx` | 修改 | 評測診斷報告空值保護與安全渲染 |
+| `app/services/gemma_llm.py` | 修改 | 新增 `_strip_thinking_blocks()` 去除思考鏈 |
+| `app/services/prompt_manager.py` | 修改 | 修復 template 填充與 markdown heading 過濾 |
+| `app/services/rag_service.py` | 修改 | 新增繁體中文 user_input trigger 指令 |
+| `days/images/day21/*.png` | 新增 | Agent-Eye 實機操作之 7 張高清測試截圖 |
 
 ---
 
 ## 結語與明天預告
 
-今天我們完成了最關鍵的前後端整合里程碑：
+今天我們成功實現了 **UniMock AI 前後端全鏈路即時連動**：
+- ✅ PDF 備審檔案上傳與多模態特徵提取
+- ✅ FastAPI 與 React 雙向 RESTful API 溝通
+- ✅ Gemma-4-31B 繁體中文高精準度 Socratic 追問
+- ✅ 完整連動流程透過 Agent-Eye 截圖存證記錄
 
-- ✅ React Frontend ↔ FastAPI Backend 完整 HTTP 通道建立
-- ✅ Gemma-4-31B 中文問答品質修正（Chain-of-Thought 過濾）
-- ✅ 完整面試對話流程 E2E 驗證通過
-- ✅ 狀態機 INTRO → PORTFOLIO_DEEP_DIVE 正確推進
-
-明天 **【Day 22】**，我們將實作 SSE (Server-Sent Events) 打字機串流，讓 AI 面試官的回應能即時逐字顯示，大幅提升面試的真實感與沉浸感！
+明天 **【Day 22】**，我們將實作 **SSE (Server-Sent Events) 打字機串流**，讓 AI 面試官的回覆能夠即時逐字流暢輸出，進一步提升模擬面試的臨場感與互動體驗！

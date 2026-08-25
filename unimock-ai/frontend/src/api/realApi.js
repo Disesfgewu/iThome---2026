@@ -51,16 +51,16 @@ export async function uploadResumeApi(file, targetSchool, targetGroup, targetMaj
   }
 }
 
-export async function startInterviewApi(sessionId, targetSchool, targetGroup, targetMajor, persona, questionCount) {
+export async function startInterviewApi(sessionId, targetSchool, targetGroup, targetMajor, persona, questionCount, extractedProfile) {
   try {
     const payload = {
       target_school: targetSchool || '',
       target_major: targetMajor || '',
-      interview_mode: '標準二階面試',
-      candidate_profile: {
+      interview_mode: persona === 'strict' ? '頂大嚴謹模式' : (persona === 'encourage' ? '鼓勵引導模式' : '標準二階面試'),
+      candidate_profile: extractedProfile?.rawProfile || {
         applicant_name: '',
         high_school: '',
-        autobiography: ''
+        autobiography: extractedProfile?.background || ''
       }
     };
 
