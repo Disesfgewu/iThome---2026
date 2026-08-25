@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+import time
 
 # Ensure UTF-8 output encoding for Windows PowerShell / CMD
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -15,13 +16,30 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.services.embedding_service import embedding_service
 
-def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False, batch_save_interval: int = 50):
+def embed_with_retry(text: str, max_retries: int = 5, delay: float = 2.0):
+    """Embeds text with exponential backoff on rate limit or network errors."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            return embedding_service.embed_query(text)
+        except Exception as e:
+            err_msg = str(e)
+            if "429" in err_msg or "Resource" in err_msg or "Quota" in err_msg or "Rate" in err_msg:
+                wait_time = delay * (2 ** (attempt - 1))
+                print(f"\n[Rate Limit 429] Reached API quota/rate limit. Waiting {wait_time:.1f}s before retry (Attempt {attempt}/{max_retries})...")
+                time.sleep(wait_time)
+            elif attempt < max_retries:
+                wait_time = delay
+                print(f"\n[API Network Warning] {err_msg[:60]}. Retrying in {wait_time}s (Attempt {attempt}/{max_retries})...")
+                time.sleep(wait_time)
+            else:
+                raise e
+
+def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False, batch_save_interval: int = 50, pacing_delay: float = 0.1):
     """
-    Strict Pre-embedding Engine for UniMock AI.
+    Strict Pre-embedding Engine for UniMock AI with Rate-Limit Backoff.
     - Strictly uses models/gemini-embedding-2 (3072-dim vectors).
-    - Automatically skips already embedded items.
+    - Automatically handles Rate Limit (429) errors with exponential backoff retries.
     - Saves checkpoints to disk every 50 items.
-    - Displays clear item-by-item progress.
     """
     if not os.path.exists(db_filepath):
         print(f"Error: Database file {db_filepath} not found!")
@@ -34,7 +52,7 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
     actual_end = total_count if end_idx is None or end_idx > total_count else end_idx
     
     print("==================================================")
-    print("UniMock AI - Strict Gemini Embedding 2 Engine")
+    print("UniMock AI - Strict Gemini Embedding 2 Engine (with Rate-Limit Backoff)")
     print(f"Target Model: models/gemini-embedding-2 (3072 dims)")
     print(f"Database Path: {db_filepath}")
     print(f"Total Database Records: {total_count}")
@@ -59,8 +77,8 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
             continue
 
         try:
-            # Compute 3072-dimensional vector embedding
-            vec = embedding_service.embed_query(q_text)
+            # Compute 3072-dimensional vector embedding with automatic retry
+            vec = embed_with_retry(q_text)
             q_item["embedding"] = vec
             processed_count += 1
             updated_count += 1
@@ -74,6 +92,10 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
                 with open(db_filepath, "w", encoding="utf-8") as f:
                     json.dump(questions, f, ensure_ascii=False, indent=2)
                 print(f"--> [Checkpoint Saved] Disk updated with {updated_count} newly embedded items.")
+
+            # Small pacing delay to avoid slamming API rate limit
+            if pacing_delay > 0:
+                time.sleep(pacing_delay)
 
         except Exception as e:
             print(f"\n[ERROR at {q_id}] Stopped pre-embedding due to API Exception: {e}")
