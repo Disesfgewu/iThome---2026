@@ -19,7 +19,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
     const timer = setInterval(() => {
       setTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, []);
 
   // Streaming typewriter effect for question
