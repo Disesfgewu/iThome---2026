@@ -12,9 +12,9 @@ class PDFUploadResponse(BaseModel):
 
 class InterviewSetupRequest(BaseModel):
     """Request DTO for Interview Session Setup."""
-    target_school: str = Field(..., example="國立台灣大學")
-    target_major: str = Field(..., example="資訊工程學系")
-    interview_mode: str = Field(default="標準二階面試", example="頂大嚴謹模式")
+    target_school: str = Field(..., json_schema_extra={"example": "國立台灣大學"})
+    target_major: str = Field(..., json_schema_extra={"example": "資訊工程學系"})
+    interview_mode: str = Field(default="標準二階面試", json_schema_extra={"example": "頂大嚴謹模式"})
     candidate_profile: Optional[CandidateProfile] = None
 
 class InterviewSetupResponse(BaseModel):
