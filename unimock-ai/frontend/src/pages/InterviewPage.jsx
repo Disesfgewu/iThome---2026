@@ -25,19 +25,23 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
 
   // Streaming typewriter effect for question
   useEffect(() => {
-    if (!currentQ || !currentQ.text) return;
+    if (!currentQ || !currentQ.text) {
+      setDisplayedQuestion('');
+      return;
+    }
+    const fullText = currentQ.text;
     setDisplayedQuestion('');
     let i = 0;
     const interval = setInterval(() => {
-      if (i < currentQ.text.length) {
-        i++;
-        setDisplayedQuestion(currentQ.text.slice(0, i));
+      i++;
+      if (i <= fullText.length) {
+        setDisplayedQuestion(fullText.slice(0, i));
       } else {
         clearInterval(interval);
       }
     }, 20);
     return () => clearInterval(interval);
-  }, [currentIdx, currentQ]);
+  }, [currentIdx, currentQ?.text]);
 
   const toggleRecording = () => {
     if (!isRecording) {
