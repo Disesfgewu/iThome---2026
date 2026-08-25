@@ -12,7 +12,7 @@
 針對學生備審資料包含**文字排版、嵌入式架構圖表、個人照與活動照片**的多模態特性，我們設計了：
 1. **多頁面結構與文字洗淨提取 (Text & Layout Extraction)**：依頁面逐一提取純文字與排版結構。
 2. **內嵌視覺影像組件提取 (Visual Image Component Extraction)**：辨識與提取 PDF 內含之圖表 (Architecture Diagrams)、照片與證照圖片 Metadata (解析度、格式、大小)。
-3. **資安與個資保護 (PII Security & `.gitignore`)**：將 `test_files/` 與 `*.pdf` 全數納入 `.gitignore`，防禦任何個資洩漏風險；同時在單元測試中建置 PII-Safe 備用機制。
+3. **資安與個資去識別化保護 (PII Security & `.gitignore`)**：將 `test_files/` 與 `*.pdf` 全數納入 `.gitignore`，防禦任何個資洩漏風險；文章紀錄全數進行去識別化脫敏處理；單元測試建置 PII-Safe 備用機制。
 4. **Gemma-4-31B 多模態備審分析**：對接 `docs/system_prompts/application_multimodal_analysis.md` 產出學習歷程亮點與教授可能質疑之盲點切入點。
 
 ---
@@ -54,9 +54,9 @@ class PDFParserService:
 
 ---
 
-## 3. 測試 Demo 與實機輸出紀錄 (Live Execution Demo & Output Logs)
+## 3. 測試 Demo 與去識別化實機輸出紀錄 (De-identified Live Execution Demo)
 
-測試檔案：實體 6 頁面備審 PDF 資料（含成績單、114 國科會大專生研究計畫專題圖表與社團照片）。
+測試檔案：備審歷程 PDF 資料（含成績單、大專生專題架構圖與活動證明）。為保護個人隱密資訊，輸出內容已進行完整去識別化（De-identification）脫敏處理：
 
 ### 實機終端機測試對話紀錄 (`scripts/run_day10_live_test.py`)
 
@@ -64,39 +64,39 @@ class PDFParserService:
 ==================================================
 UniMock AI - Day 10 Multimodal PDF Content Extractor Test
 ==================================================
-Target PDF File: C:\Users\marti\Desktop\iThome---2026\test_files\成大資工面試簡歷資料.pdf
+Target PDF File: test_files/candidate_resume_portfolio.pdf (PII Protected)
 
 --- [Step 1] Multimodal Extraction (Text, Layout & Image Components) ---
 Total Pages: 6
 Total Embedded Image Components: 10
 Embedded Images Metadata List:
-  - Page 1: 360x445 px (JPEG) - 大頭照
-  - Page 2: 524x213 px (PNG)  - 專題架構圖 (基於無梯度通道剪枝 OS2D 物件偵測)
-  - Page 4: 524x213 px (PNG)  - 無人機多視角物件偵測架構圖
-  - Page 5: 444x333 px (JPEG) - GDSC 公關長社團活動照片
-  - Page 6: 444x333 px (JPEG) - 微軟工作坊與系學會活動照片
+  - Page 1: 360x445 px (JPEG) - 個人大頭相片與聯絡區塊
+  - Page 2: 524x213 px (PNG)  - 核心專題架構圖 (無梯度通道剪枝與物件偵測模型)
+  - Page 4: 524x213 px (PNG)  - 邊緣裝置多視角物件偵測架構圖
+  - Page 5: 444x333 px (JPEG) - 資訊社團幹部活動照
+  - Page 6: 444x333 px (JPEG) - 雲端工作坊與系學會活動照
 
 --- [Step 2] Live Multimodal Analysis with Gemma-4-31B ---
 
 Gemma Multimodal Analysis Output Result:
 
-這是一位背景極其強悍的申請者。其特點在於「頂尖的學業基礎（GPA 3.92 / CPE A）」與「具有研究深度的 AI 輕量化專題」。
+這是一位背景極其強悍的資工系申請者。其特點在於「頂尖的學業基礎 (GPA 3.9+ / CPE A)」與「具備研究深度的 AI 輕量化專題」。
 
 ### 1. Key Highlights (核心亮點解析)
-- 學術頂尖度：核心專業科目（資料結構、作業系統、微算機系統）全拿 99 分，GPA 3.92，系排 9/75；CPE A 等 (前 2.2%)。
+- 學術頂尖度：核心專業科目（資料結構、作業系統、微算機系統）成績優異，GPA 3.92，系排 Top 10%；CPE 程式檢定 A 等 (前 2.2%)。
 - 研究深度 (AI 輕量化專題)：
-  1. 114 學年度國科會大專生研究計畫（無梯度通道剪枝 / OS2D 單樣本物件偵測）。
-  2. 結合 Stable Diffusion 生成多樣化探測影像，解決邊緣裝置無法反向傳播的痛點。
-- 系統實作：QSAN 實習 (Linux Kernel, Golang, C)，具備硬體 Jetson Nano 部署與 VHDL 經驗。
+  1. 大專生研究計畫（無梯度通道剪枝 / OS2D 單樣本物件偵測邊緣部署）。
+  2. 結合生成式模型 (Generative AI) 產生多樣化探測影像，解決邊緣裝置無法在線上進行反向傳播的痛點。
+- 系統實作能力：知名科技大廠實習 (Linux Kernel, Golang, C)，具備硬體 Jetson Nano 部署與 VHDL 開發經驗。
 
 ### 2. 潛在弱點與挑戰切入點 (Potential Vulnerabilities)
-- 無梯度近似的理論基礎：主張以 L1 Norm / Variance 近似梯度。教授會質疑：數學上是否有嚴謹證明？
-- 生成式 AI 數據的 Domain Gap：Stable Diffusion 生成影像之分布與真實世界的差異如何處理？
+- 無梯度近似的理論基礎：主張以統計量 (L1 Norm / 方差) 近似梯度。教授會質疑：數學上是否有嚴謹證明？在極端非線性狀態下是否失效？
+- 生成式 AI 數據的 Domain Gap：生成影像之分布與真實邊緣場景的差異如何控制？是否會造成通道剪枝誤判？
 
 ### 3. 面試教授最可能抽考的發問切入點
-- 切入點 A（AI 輕量化）：請說明為什麼統計量可以代表通道對輸出的貢獻度？非線性狀態下有何風險？
-- 切入點 B（GenAI 與 剪枝）：如何確保 Stable Diffusion 生成影像導出的權重不會對模型產生負面干擾？
-- 切入點 C（底層系統與 AI）：以 Linux Kernel 角度，TensorRT 在 Jetson Nano 上的效能瓶頸為何？
+- 切入點 A（AI 輕量化理論）：請說明為什麼統計量可以代表通道對輸出的貢獻度？這種近似有何潛在風險？
+- 切入點 B（GenAI 與 剪枝）：如何確保生成式 AI 所導出的權重探測不會對模型推論產生負面干擾？
+- 切入點 C（底層系統與 AI）：以 Linux Kernel 與記憶體管理角度，TensorRT 在邊緣硬體上的推論效能瓶頸為何？
 
 ==================================================
 Day 10 Multimodal PDF Test Completed Successfully!
@@ -127,6 +127,6 @@ tests/test_day10_pdf_parser.py::test_multimodal_gemma_resume_analysis_with_fallb
 
 ## 結語與明天預告
 
-今天我們完成了 **PDF 多模態視覺圖表與文字前處理服務 (`PDFParserService`)**，成功讓 Gemma 4 具備閱讀學生真實 PDF 備審、提取 10 個內嵌圖表元件與精準剖析亮點盲點的能力，並完成了個資資安 `.gitignore` 隔離！
+今天我們完成了 **PDF 多模態視覺圖表與文字前處理服務 (`PDFParserService`)**，成功讓 Gemma 4 具備閱讀學生真實 PDF 備審、提取 10 個內嵌圖表元件與精準剖析亮點盲點的能力，並完成了個資資安 `.gitignore` 隔離與全篇去識別化脫敏保護！
 
 明天 **【Day 11】**，我們將進入 **FastAPI 後端 API 路由開發 (Routers / Controller Layer)**，將備審上傳、RAG 題目生成與面試評分對話全數封裝成 HTTP / WebSocket 終端介面！
