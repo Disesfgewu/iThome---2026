@@ -6,10 +6,10 @@ from app.config import settings
 
 class GeminiEmbeddingService:
     """
-    Service wrapper for Google AI Studio Gemini Embedding 2 model (text-embedding-004).
+    Service wrapper for Google AI Studio Gemini Embedding 2 model (models/gemini-embedding-2).
     Calculates normalized dense vector representations for interview questions and candidate answers.
     """
-    def __init__(self, model_name: str = "models/text-embedding-004"):
+    def __init__(self, model_name: str = "models/gemini-embedding-2"):
         self.model_name = model_name
         self.api_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
         if self.api_key:
@@ -21,17 +21,18 @@ class GeminiEmbeddingService:
             return [0.0] * 768
 
         if self.api_key:
-            try:
-                result = genai.embed_content(
-                    model=self.model_name,
-                    content=text,
-                    task_type="retrieval_query"
-                )
-                embedding = result.get("embedding", [])
-                if embedding:
-                    return self._normalize(embedding)
-            except Exception as e:
-                print(f"[GeminiEmbeddingService] API Warning: {e}. Fallback to local pseudo-embedding.")
+            for model_try in [self.model_name, "models/gemini-embedding-2", "models/gemini-embedding-001"]:
+                try:
+                    result = genai.embed_content(
+                        model=model_try,
+                        content=text
+                    )
+                    embedding = result.get("embedding", [])
+                    if embedding:
+                        return self._normalize(embedding)
+                except Exception as e:
+                    # Print warning if API fails and fallback to next or pseudo-vector
+                    continue
 
         return self._pseudo_embedding(text)
 

@@ -3,6 +3,13 @@ import json
 import os
 import sys
 
+# Ensure UTF-8 output encoding for Windows PowerShell / CMD
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # Ensure root unimock-ai directory is in PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -46,8 +53,6 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
         # Skip logic: If embedding already exists and force_reembed is False
         if existing_vec and isinstance(existing_vec, list) and len(existing_vec) > 0 and not force_reembed:
             skipped_count += 1
-            if skipped_count <= 5 or skipped_count % 200 == 0:
-                print(f"[SKIP {q_id}] Already embedded ({len(existing_vec)} dims). Question: '{q_text[:20]}...'")
             continue
 
         # Compute embedding for missing item
@@ -57,7 +62,8 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
         updated_count += 1
 
         if processed_count % 50 == 0 or i == actual_end - 1:
-            print(f"[EMBED {q_id}] Progress: [{processed_count}/{actual_end - start_idx - skipped_count}] Computed vector for '{q_text[:20]}...'")
+            safe_text = q_text[:20].encode("ascii", "ignore").decode("ascii") or "question_text"
+            print(f"[EMBED {q_id}] Progress: [{processed_count}/{actual_end - start_idx - skipped_count}] Computed vector for '{safe_text}...'")
 
     # Save updated database
     if updated_count > 0:

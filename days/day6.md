@@ -51,7 +51,7 @@
 
 ## 2. Gemini Embedding 2 向量化整合 (`app/services/embedding_service.py`)
 
-為了支援高精度的面試題目語意相似度檢索，我們採用 Google AI Studio 託管的旗艦 Embedding 模型 **Gemini Embedding 2** (`models/text-embedding-004`)。
+為了支援高精度的面試題目語意相似度檢索，我們採用 Google AI Studio 託管的旗艦 Embedding 模型 **Gemini Embedding 2** (`models/gemini-embedding-2`，輸出高精度 3072 維正規化 Dense Vector)。
 
 ### B. 編號追溯與增量自動跳過預處理腳本 (`scripts/incremental_preembed_questions.py`)
 
