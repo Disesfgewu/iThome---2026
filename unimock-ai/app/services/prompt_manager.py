@@ -13,7 +13,7 @@ class AsyncPromptManager:
             # Default to unimock-ai/docs/system_prompts
             base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "system_prompts"))
         self.base_dir = base_dir
-        self._cache: Dict[str, str] = {}
+        self._cache: Dict[str, str] = {}  # Raw file content cache (cleared on restart)
 
     async def get_system_prompt(self, prompt_name: str, **kwargs: Any) -> str:
         """
@@ -33,14 +33,21 @@ class AsyncPromptManager:
             raw_template = await asyncio.to_thread(self._read_file_sync, filepath)
             self._cache[filepath] = raw_template
 
-        # Format template with provided variables if any
+        # Strip markdown heading lines (lines starting with #) and blank lines at top
+        lines = raw_template.splitlines()
+        content_lines = [l for l in lines if not l.strip().startswith('#')]
+        clean_template = '\n'.join(content_lines).strip()
+
+        # Format template with provided variables, filling missing keys with empty string
         if kwargs:
+            import re
+            placeholders = re.findall(r'\{(\w+)\}', clean_template)
+            fill_kwargs = {p: kwargs.get(p, '') for p in placeholders}
             try:
-                return raw_template.format(**kwargs)
-            except KeyError:
-                # If formatting fails due to missing keys, return raw template safely
-                return raw_template
-        return raw_template
+                return clean_template.format(**fill_kwargs)
+            except Exception:
+                return clean_template
+        return clean_template
 
     def _read_file_sync(self, filepath: str) -> str:
         with open(filepath, "r", encoding="utf-8") as f:

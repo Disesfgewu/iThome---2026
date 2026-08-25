@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import WaveformBar from '../components/WaveformBar';
-import { respondInterviewApi, checkSchoolTier } from '../api/mockApi';
+import { respondInterviewApi } from '../api/realApi';
+import { checkSchoolTier } from '../api/mockApi';
 
 export default function InterviewPage({ sessionData, setSessionData, onFinishInterview }) {
   const [currentIdx, setCurrentIdx] = useState(0);

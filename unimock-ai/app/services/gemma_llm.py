@@ -69,6 +69,58 @@ class GemmaLLMClient(BaseChatModel):
         formatted_parts.append("<start_of_turn>model\n")
         return "\n".join(formatted_parts)
 
+    def _strip_thinking_blocks(self, text: str) -> str:
+        """
+        Strips Gemma chain-of-thought thinking blocks from the output.
+        Gemma-4-31B sometimes outputs reasoning as markdown bullet lists (*   ...),
+        followed by the actual answer at the very end.
+        This method extracts only the actual answer content (last non-thinking line/paragraph).
+        """
+        if not text:
+            return text
+        
+        # Strategy 1: If the text contains <think> ... </think> XML tags, strip them
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        if text:
+            # Check if remaining text is clean (not bullets)
+            first_line = text.splitlines()[0].strip() if text.splitlines() else ''
+            if not first_line.startswith('*') and not first_line.startswith('-'):
+                return text
+        
+        # Strategy 2: Split all lines and find the last complete Chinese sentence
+        lines = text.splitlines()
+        
+        # Find the last line that looks like a complete Chinese question/sentence
+        # (ends with ? / ？ / 。 / ！ or is a substantive Chinese text without * / -)
+        for line in reversed(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Skip pure bullet/reasoning lines
+            if stripped.startswith('*') or stripped.startswith('-'):
+                continue
+            # Skip English-only metadata lines
+            if re.match(r'^[A-Za-z\s\.:,\(\)/]+$', stripped):
+                continue
+            # Return first non-thinking line from the bottom
+            return stripped
+        
+        # Strategy 3: Split into paragraphs and return last non-thinking paragraph
+        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+        for para in reversed(paragraphs):
+            first_line = para.splitlines()[0].strip() if para.splitlines() else ''
+            is_thinking = (
+                first_line.startswith('*') or
+                first_line.startswith('-') or
+                'Role:' in first_line or
+                'Language:' in first_line or
+                'Draft' in first_line
+            )
+            if not is_thinking:
+                return para
+        
+        return paragraphs[-1] if paragraphs else text
+
     def _generate(
         self,
         messages: List[BaseMessage],
@@ -102,6 +154,10 @@ class GemmaLLMClient(BaseChatModel):
                 response = self._model.generate_content(prompt_str)
                 output_text = response.text if response and hasattr(response, "text") else ""
                 clean_text = re.sub(r"<end_of_turn>$", "", output_text).strip()
+                # Strip Gemma chain-of-thought thinking blocks:
+                # Gemma sometimes outputs reasoning as markdown bullets before the final answer.
+                # The actual answer is always the last non-empty paragraph after thinking.
+                clean_text = self._strip_thinking_blocks(clean_text)
                 message = AIMessage(content=clean_text)
                 return ChatResult(generations=[ChatGeneration(message=message)])
             except Exception as e:

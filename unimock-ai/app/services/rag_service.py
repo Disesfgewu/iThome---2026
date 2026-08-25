@@ -100,7 +100,7 @@ class RAGRetrieverService:
 
         generated_question = await gemma_client.invoke_with_system_prompt(
             prompt_name="question_generation",
-            user_input="",
+            user_input="請根據以上面試情境與學生背景，直接輸出一道繁體中文面試問題，不要任何說明文字。",
             target_school=school,
             target_major=major,
             interview_mode=interview_mode,

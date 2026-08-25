@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { uploadResumeApi, mockDepartmentGroups, checkSchoolTier } from '../api/mockApi';
+import { uploadResumeApi, startInterviewApi } from '../api/realApi';
+import { mockDepartmentGroups, checkSchoolTier } from '../api/mockApi';
 
 export default function SetupPage({ sessionData, setSessionData, onStartInterview }) {
   const [targetSchool, setTargetSchool] = useState(sessionData.targetSchool || '國立臺灣大學');
@@ -8,7 +9,7 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
   const [persona, setPersona] = useState(sessionData.interviewerPersona || 'strict');
   const [qCount, setQCount] = useState(sessionData.questionCount || 3);
   const [isScanning, setIsScanning] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState('陳小明_資工自傳與專案.pdf');
+  const [uploadedFileName, setUploadedFileName] = useState('');
 
   const tierInfo = checkSchoolTier(targetSchool);
 
@@ -24,14 +25,27 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
     setIsScanning(false);
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    const startRes = await startInterviewApi(
+      sessionData.sessionId,
+      targetSchool,
+      targetGroup,
+      targetMajor,
+      persona,
+      qCount
+    );
+
     setSessionData((prev) => ({
       ...prev,
+      sessionId: startRes.sessionId || prev.sessionId,
       targetSchool,
       targetGroup,
       targetMajor,
       interviewerPersona: persona,
-      questionCount: qCount
+      questionCount: qCount,
+      questions: startRes.firstQuestion ? [
+        { index: 1, phase: '破冰自述與專業動機', text: startRes.firstQuestion, hint: '著重底層原理與專案動機！' }
+      ] : prev.questions
     }));
     onStartInterview();
   };
@@ -220,10 +234,12 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
             </div>
             <h3 class="font-bold text-slate-900 text-base mb-1">上傳備審資料 (PDF)</h3>
             <p class="text-xs text-slate-500">點擊上傳或拖曳 PDF 檔案至此</p>
-            <div class="mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-xs text-xs font-mono text-slate-700">
-              <span class="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
-              {uploadedFileName}
-            </div>
+            {uploadedFileName && (
+              <div class="mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-xs text-xs font-mono text-slate-700">
+                <span class="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
+                {uploadedFileName}
+              </div>
+            )}
           </label>
 
           {/* AI Extracted Profile Box */}
@@ -235,7 +251,7 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
               </span>
               <span class="text-xs font-mono text-emerald-600 flex items-center gap-1">
                 <span class="material-symbols-outlined text-sm">bolt</span>
-                解析完成
+                {uploadedFileName ? '解析完成' : '待上傳'}
               </span>
             </div>
 
@@ -250,13 +266,17 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
                   <span class="material-symbols-outlined text-sm">add_circle</span>
                   技術與亮點 (Highlights)
                 </h4>
-                <ul class="space-y-1.5">
-                  {sessionData.extractedProfile.highlights.map((h, i) => (
-                    <li key={i} class="border-l-2 border-emerald-400 pl-2.5 text-slate-700 font-mono text-xs">
-                      <strong>[{h.category}] {h.title}</strong>: {h.description}
-                    </li>
-                  ))}
-                </ul>
+                {sessionData.extractedProfile.highlights && sessionData.extractedProfile.highlights.length > 0 ? (
+                  <ul class="space-y-1.5">
+                    {sessionData.extractedProfile.highlights.map((h, i) => (
+                      <li key={i} class="border-l-2 border-emerald-400 pl-2.5 text-slate-700 font-mono text-xs">
+                        <strong>[{h.category}] {h.title}</strong>: {h.description}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p class="text-xs text-slate-400 font-mono">（尚未上傳 PDF 備審資料）</p>
+                )}
               </div>
 
               {/* Blindspots */}
@@ -265,13 +285,17 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
                   <span class="material-symbols-outlined text-sm">warning</span>
                   潛在盲區 (Blindspots)
                 </h4>
-                <ul class="space-y-1.5">
-                  {sessionData.extractedProfile.detectedBlindspots.map((b, i) => (
-                    <li key={i} class="border-l-2 border-rose-400 pl-2.5 text-slate-700 font-mono text-xs">
-                      {b}
-                    </li>
-                  ))}
-                </ul>
+                {sessionData.extractedProfile.detectedBlindspots && sessionData.extractedProfile.detectedBlindspots.length > 0 ? (
+                  <ul class="space-y-1.5">
+                    {sessionData.extractedProfile.detectedBlindspots.map((b, i) => (
+                      <li key={i} class="border-l-2 border-rose-400 pl-2.5 text-slate-700 font-mono text-xs">
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p class="text-xs text-slate-400 font-mono">（尚未檢測到盲區）</p>
+                )}
               </div>
             </div>
           </div>

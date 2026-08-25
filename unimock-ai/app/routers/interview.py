@@ -109,7 +109,8 @@ async def submit_user_answer(req: AnswerSubmitRequest):
     user_prompt_with_instructions = (
         f"{stage_instruction}\n"
         f"{socratic_instruction}\n"
-        f"【學生最新回答】：{req.user_answer}"
+        f"【學生最新回答】：{req.user_answer}\n\n"
+        f"請根據以上學生回答，直接輸出一道繁體中文追問或鼓勵語句，不要任何推理說明文字。"
     )
 
     next_question = await gemma_client.invoke_with_system_prompt(
