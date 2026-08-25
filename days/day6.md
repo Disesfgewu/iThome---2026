@@ -4,13 +4,17 @@
 
 ---
 
-## 1. 資料來源、去識別化策略與去識別化 Schema 規範
+## 1. 使用者提示詞 (User Prompt) 與去識別化 ETL 策略
 
-### A. 去識別化 (De-identification) 策略
-- **解除具體學校綁定：** 資料庫紀錄不綁定特定大專院校名稱（`school`），改為通用開放題目。
-- **維護核心維度綁定：** 題庫精確綁定 **`department_group` (目標學群)**、**`department` (目標學系)**、**`question_category` (通用型 vs 技術專業型)** 以及 **`difficulty_level` (標準題 / 進階專業題 / 高難度申論題)**。
+### A. 使用者指示 (User Prompt)
+> 💬 **User Prompt**：
+> 「資料庫紀錄不要綁學校 可以綁學群跟學系 但不要綁學校 可以記錄難易度跟通用和技術專業型問題。請協助將 `datas/interview_questions_rows.csv` 進行去識別化與 JSON 格式轉換。」
 
-### B. 去識別化 JSON DB 格式範例 (`app/db/interview_questions_db.json`)
+### B. 去識別化 (De-identification) 策略
+- **解耦學校綁定：** 資料庫紀錄去除具體大專院校名稱（`school`），改為通用開放題目。
+- **維持四大關鍵維度：** 題庫精確綁定 **`department_group` (目標學群)**、**`department` (目標學系)**、**`question_category` (通用型 vs 技術專業型)** 以及 **`difficulty_level` (標準題 / 進階專業題 / 高難度申論題)**。
+
+### C. 去識別化 JSON DB 格式 Schema 範例 (`app/db/interview_questions_db.json`)
 
 ```json
 [
@@ -43,24 +47,14 @@
 
 ```python
 class GeminiEmbeddingService:
-    def __init__(self, model_name: str = "models/gemini-embedding-2"):
-        self.model_name = model_name
-        self.api_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
-
     def embed_query(self, text: str) -> List[float]:
         """呼叫 models/gemini-embedding-2 產生 3072 維度正規化向量"""
         genai.configure(api_key=self.api_key)
         result = genai.embed_content(model=self.model_name, content=text)
         return self._normalize(result.get("embedding", []))
-
-    def _normalize(self, vec: List[float]) -> List[float]:
-        norm = math.sqrt(sum(x * x for x in vec))
-        return [x / norm for x in vec] if norm != 0 else vec
 ```
 
 ### 限流保護與增量預處理腳本重點 (`scripts/incremental_preembed_questions.py`)
-
-為避免超過 Google 免費版上限（100 RPM）觸發 `429` 錯誤，預處理腳本實作了自動等待與 0.65 秒平滑流速控制：
 
 ```python
 def embed_with_retry(text: str, max_retries: int = 10):
@@ -79,36 +73,28 @@ def embed_with_retry(text: str, max_retries: int = 10):
 
 ---
 
-## 3. 儲存庫隔離層實作 (`app/repositories/question_repository.py`)
+## 3. 測試 Demo 與實機執行紀錄 (Live Execution Demo & Logs)
 
-採用 **Repository Pattern (儲存庫模式)** 保護 JSON 資料庫，提供向量相似度比對與多維度過濾介面：
+### 實機預處理腳本執行紀錄 (Live Terminal Log Output)
+執行 `python scripts/incremental_preembed_questions.py --start 0 --end 1000` 產出的終端機紀錄：
 
-```python
-class QuestionRepository:
-    def get_questions_by_filter(self, department: Optional[str] = None, question_category: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
-        """依照學系與問題屬性進行安全過濾"""
-        matched = [
-            dict(q) for q in self._questions
-            if (not department or department in q.get("department", "")) and
-               (not question_category or q.get("question_category") == question_category)
-        ]
-        return matched[:limit] or [dict(q) for q in self._questions[:limit]]
-
-    def search_similar_questions(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
-        """利用 3072 維度預計算向量進行點積 (Dot Product) 餘弦相似度檢索"""
-        query_vec = embedding_service.embed_query(query_text)
-        scored = []
-        for q in self._questions:
-            doc_vec = q.get("embedding") or embedding_service.embed_query(q.get("question", ""))
-            score = sum(a * b for a, b in zip(query_vec, doc_vec))
-            scored.append((score, dict(q)))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [q for score, q in scored[:top_k]]
+```text
+==================================================
+UniMock AI - Strict Gemini Embedding 2 Engine
+Target Model: models/gemini-embedding-2 (3072 dims)
+Pacing Delay: 0.65s/request (Max 90 RPM)
+Database Path: C:\Users\marti\Desktop\iThome---2026\unimock-ai\app\db\interview_questions_db.json
+Total Database Records: 2045
+Processing Range: Index 0 to 999 (Items 1 ~ 1000)
+==================================================
+[EMBED q_0001] Progress [1/1000] Computed 3072-dim vector for '請向非資訊背景的人解釋...'
+[EMBED q_0002] Progress [2/1000] Computed 3072-dim vector for '請說明你在高中自主...'
+--> [Checkpoint Saved] Disk updated with 50 newly embedded items.
 ```
 
 ---
 
-## 4. Pytest 自動化測試驗證
+## 4. Pytest 自動化測試驗證數據
 
 執行 `pytest tests/test_repository.py` 驗證結果：
 

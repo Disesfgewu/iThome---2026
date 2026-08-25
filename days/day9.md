@@ -4,12 +4,21 @@
 
 ---
 
-## 1. 核心機制一：滑動視窗對話上下文管理器 (`TokenContextGuard`)
+## 1. 使用者提示詞 (User Prompt) 與關鍵防禦需求
 
-為防止學生與考官過往問答逐字稿 (`transcript`) 累積過長導致 LLM 上下文爆表 (Context Window Overflow / Too Many Tokens Input)，我們設計了 **`TokenContextGuard`** 機制：
-- **Token 動態估算**：針對中英文混合文本（繁簡中文約 1.5 字符/Token）即時計算長度。
-- **滑動視窗動態截斷**：保留系統標頭與最近的焦點對話，對更早期的歷史問答插入記憶壓縮摘要。
+> 💬 **User Prompt**：
+> 「由於 LLM 或有 429 和 too many tokens input 之類的問題 我們需要強化封裝這個 client 物件去進行保護操作 請你根據 Day9 的計劃設計進行開發 開發完後 並一樣 紀錄成果和我給你的 Prompt 到對應的 MD 中」
 
+根據這項關鍵需求，我們實現了四大關鍵防禦機制：
+1. **`TokenContextGuard`**：Token 計數與滑動視窗對話動態截斷（防止 Context Window Overflow）。
+2. **`GemmaLLMClient` 429 重試迴圈**：429 Rate Limit 與網路錯情指數退避重試。
+3. **`astream_with_system_prompt`**：非同步 Token 串流吐字。
+
+---
+
+## 2. 核心機制實作程式碼片段
+
+### A. 滑動視窗對話上下文管理器 (`TokenContextGuard`)
 ```python
 class TokenContextGuard:
     def estimate_tokens(self, text: str) -> int:
@@ -41,12 +50,7 @@ class TokenContextGuard:
         return "\n".join(header_lines) + "\n" + truncated_summary + "\n".join(kept_dialogue)
 ```
 
----
-
-## 2. 核心機制二：429 重試與非同步串流 (`GemmaLLMClient`)
-
-針對高併發或免費層 API 限制時常見的 `429 Rate Limit / ResourceExhausted` 錯誤，我們在 `GemmaLLMClient` 中封裝了**指數退避重試迴圈 (Exponential Backoff Loop)**，並提供 `astream_with_system_prompt` 作為前端 SSE 串流輸出的核心方法：
-
+### B. 429 重試與非同步串流 (`GemmaLLMClient`)
 ```python
 class GemmaLLMClient(BaseChatModel):
     max_retries: int = 3
@@ -87,18 +91,26 @@ class GemmaLLMClient(BaseChatModel):
 
 ---
 
-## 3. 實機測試數據紀錄
+## 3. 測試 Demo 與實機輸出紀錄 (Live Execution Demo & Output Logs)
 
 執行 `scripts/run_day9_live_test.py` 實機測試關鍵結果：
 
-- **長對話 Token 截斷**：長達 40 輪對話（3,233 字，約 3,695 tokens）成功經由滑動視窗精準截斷至 **329 tokens**，成功防止爆表。
-- **Gemma-4-31B 機敏回應**：考官偵測到對話中的重複回答模式，主動打破循環並深挖技術核心：
-  > *「[考官]：我看你剛才在許多專案中都提到了使用 Python 的『多流程架構』來克服瓶頸... 請你詳細說明：在 Python 的環境下，為什麼你選擇使用『多流程 (Multiprocessing)』而非『多執行緒 (Multithreading)』？這與 Python 的 GIL (Global Interpreter Lock) 有什麼關聯？」*
+- **長對話 Token 截斷紀錄**：
+  原始對話長度 3,233 字（約 3,695 tokens）成功經由滑動視窗精準截斷至 **329 tokens**！
+  ```text
+  [系統]: 面試開始。
+  [系統]: (更早期的問答對話已進行記憶摘要壓縮以控制 Token 長度...)
+  [考官]: 請向我說明第 38 個專案遭遇的困難？
+  [學生]: 在第 38 個專案中，我使用了 Python 與多流程架構...
+  ```
+- **Gemma-4-31B 機敏回應輸出**：
+  考官偵測到對話中的重複回答模式，主動打破循環並深挖技術核心：
+  > *「[考官]：我看你剛才在許多專案中都提到了使用 Python 的『多流程架構』來克服瓶頸。既然你在全國軟體競賽中取得一等獎，且對演算法有深厚的熱情，我想我們不需要再逐一列舉專案清單，而應該進入更深層的技術探討。請你詳細說明：在 Python 的環境下，為什麼你選擇使用『多流程 (Multiprocessing)』而非『多執行緒 (Multithreading)』？這與 Python 的 GIL (Global Interpreter Lock) 有什麼關聯？」*
 - **非同步 Token 串流吐字**：`astream_with_system_prompt` 成功完成逐字即時吐字傳輸。
 
 ---
 
-## 4. Pytest 單元測試結果
+## 4. Pytest 自動化測試驗證數據
 
 ```text
 tests/test_day9_resilient_gemma.py::test_token_estimation_and_truncation PASSED [ 50%]
@@ -111,6 +123,6 @@ tests/test_day9_resilient_gemma.py::test_resilient_gemma_client_retries_and_stre
 
 ## 結語與明天預告
 
-今天我們以精簡強健的模組完成了 Gemma LLM Client 客戶端的 **429 指數退避重試**、**TokenContextGuard 滑動視窗動態截斷** 與 **非同步 Token 串流**。
+今天我們完成了 Gemma LLM Client 客戶端的 **429 指數退避重試**、**TokenContextGuard 滑動視窗動態截斷** 與 **非同步 Token 串流**。
 
 明天 **【Day 10】**，我們將進入多模態備審前處理——**利用 PyPDF 閱讀學生備審與自傳 PDF，並透過 Gemma 解析結構化履歷亮點與邏輯盲點**！

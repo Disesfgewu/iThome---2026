@@ -2,13 +2,14 @@
 
 在建立了 Day 7 的 Gemma-4-31B Chat Client、非同步 System Prompt 管理器與資安 Guardrail 之後，今天我們完成第二階段的關鍵樞紐——**全方位履歷資料庫向量化 (Candidate Profile Embedding)、RAG 相似度比對與動態題目生成引擎 (RAGRetrieverService)**。
 
-本系統的文本生成 LLM **嚴格且唯一採用專屬開源旗艦模型 `models/gemma-4-31b-it`**。系統透過將學生的「**全方位 8 大履歷面向**（自傳、經歷、學業成績、修課紀錄、社團幹部、專案競賽、得獎紀錄、專題論文/研究成果及證照技能）」進行結構化清洗，並以 **Gemini Embedding 2 進行 3,072 維度向量化**，下探至擁有 2,045 筆 pre-embedded 向量資料庫進行餘弦相似度 (Cosine Similarity) 檢索，抽取出最適切的「範例題目種子 (Sample Questions Seed Context)」，交由 Gemma-4-31B-it 模型實時動態合成全新且專屬的面試考題。
-
 ---
 
-## 1. 全方位履歷資料結構模型 (`CandidateProfile`)
+## 1. 使用者提示詞 (User Prompt) 與核心資料結構模型
 
-收錄備審履歷中的 8 大核心維度，並提供結構化格式化輸出：
+> 💬 **User Prompt**：
+> 「根據 User 的資料輸入和對應的設定 我們也要根據 Profile 在生成問題的時候去根據 User data 進行 Embedding 並下去 RAG 資料庫進行 相似度比較。不只是個人經歷 競賽專案 目標學系 應該要包含所有的用戶資訊 包刮 自傳、經歷、成績、修課、社團幹部、專案競賽、得獎、專題論文 等等的領域 也就是出現在履歷中的資訊 都要可以洗出來並放好後 進行操作。」
+
+根據這項關鍵需求，我們建立了收錄 8 大核心維度的 `CandidateProfile` 資料模型：
 
 ```python
 class CandidateProfile(BaseModel):
@@ -24,7 +25,7 @@ class CandidateProfile(BaseModel):
     certifications_and_skills: List[str] = Field(default_factory=list)
 
     def to_structured_text(self) -> str:
-        """將 8 大履歷面向合成可進行向量化與 Prompt 注入的文本"""
+        """將 8 大履歷面向合成可進行向量化與 Prompt 注入的文字"""
         parts = [
             f"【目標校系】{self.target_school} {self.target_major}",
             f"【自傳摘要】{self.autobiography}" if self.autobiography else "",
@@ -41,29 +42,14 @@ class CandidateProfile(BaseModel):
 
 ---
 
-## 2. RAG 雙層向量與過濾檢索架構設計 (RAG Architecture)
-
-```mermaid
-graph TD
-    A["全方位 8 大履歷資料輸入: 自傳+經歷+成績+修課+社團+競賽+論文+技能"] --> B["CandidateProfile.to_structured_text()"]
-    B --> C["User Data Vectorization (Gemini Embedding 2, 3072 dims)"]
-    C --> D["QuestionRepository.search_similar_questions_by_vector"]
-    D -->|混合檢索: 向量相似度 + 學系過濾| E["Top-K 範例題目種子 (Sample Questions Context)"]
-    E --> F["AsyncPromptManager (系統提示詞動態注入)"]
-    F --> G["GemmaLLMClient (models/gemma-4-31b-it)"]
-    G --> H["動態產出切中正確面向與學生履歷全貌之專屬面試考題"]
-```
-
----
-
-## 3. RAG 檢索器與向量比對引擎 (`RAGRetrieverService`)
+## 2. RAG 檢索器與向量比對引擎 (`RAGRetrieverService`)
 
 ```python
 class RAGRetrieverService:
     async def retrieve_sample_questions_for_candidate(
         self, candidate_profile: Union[str, CandidateProfile], target_major: Optional[str] = None, top_k: int = 3
     ) -> List[Dict[str, Any]]:
-        """非同步估算 Candidate Profile 向量並進行向量比對"""
+        """非同步估算 Candidate Profile 向量並進行 3072 維度向量比對"""
         profile_text = candidate_profile.to_structured_text() if isinstance(candidate_profile, CandidateProfile) else str(candidate_profile)
         query_text = f"目標學系: {target_major or ''}。\n【全方位履歷歷程】\n{profile_text}"
         
@@ -90,7 +76,18 @@ class RAGRetrieverService:
 
 ---
 
-## 4. Pytest 單元與整合測試驗證
+## 3. 測試 Demo 與實機出題輸出紀錄 (Live Execution Demo & Output Logs)
+
+執行全履歷 RAG 檢索與 Gemma-4-31B 動態出題端到端測試，產出成果：
+
+- **RAG 檢索到的範例題庫種子 (Top Match)**：
+  `"請向非資訊背景的人解釋什麼是 Stack 與 Queue？"` (類別: 技術專業型問題 | 難易度: 進階專業題)
+- **Gemma-4-31B 實時動態合成之專屬面試考題**：
+  > *「[考官]：小明同學，很高興看到你在全國資訊軟體競賽中能取得一等獎，並在專題論文中進行深度學習車牌辨識的研究... 假設你現在正在開發一個簡單的文字編輯器，需要實作『復原 (Undo, Ctrl+Z)』與『重做 (Redo, Ctrl+Y)』功能。請你告訴我，你會選擇哪些資料結構？並請試著將選擇邏輯解釋給完全沒有資訊背景的產品設計師聽...」*
+
+---
+
+## 4. Pytest 自動化測試驗證數據
 
 ```text
 tests/test_rag_service.py::test_candidate_profile_model_structured_text PASSED               [ 25%]
