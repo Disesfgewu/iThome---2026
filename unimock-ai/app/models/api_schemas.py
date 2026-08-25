@@ -23,6 +23,7 @@ class InterviewSetupResponse(BaseModel):
     target_school: str
     target_major: str
     interview_mode: str
+    current_stage: str
     first_question: str
     rag_seed_questions_count: int
 
@@ -37,6 +38,8 @@ class AnswerSubmitResponse(BaseModel):
     user_answer: str
     next_question: str
     turn_count: int
+    current_stage: str
+    is_finished: bool
 
 class ReportGenerateRequest(BaseModel):
     """Request DTO for Report Generation."""
@@ -57,6 +60,8 @@ class RecordSummaryResponse(BaseModel):
     target_school: str
     target_major: str
     interview_mode: str
+    current_stage: str
+    is_finished: bool
     created_at: str
     total_turns: int
     has_report: bool

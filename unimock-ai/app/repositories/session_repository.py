@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from app.models.candidate_model import CandidateProfile
+from app.services.state_machine import InterviewStage, interview_state_machine
 
 class SessionRepository:
     """
     In-Memory Session Repository managing Record DB and Q/A DB state.
-    Stores interview session metadata, transcripts, candidate profiles, and evaluation reports.
+    Integrates InterviewStateMachine to track 4-phase stage flow and finished status.
     """
     def __init__(self):
         self._sessions: Dict[str, Dict[str, Any]] = {}
@@ -26,6 +27,8 @@ class SessionRepository:
             target_major=target_major
         )
 
+        stage, is_finished = interview_state_machine.get_stage_for_turn(1)
+
         self._sessions[session_id] = {
             "session_id": session_id,
             "target_school": target_school,
@@ -33,6 +36,8 @@ class SessionRepository:
             "interview_mode": interview_mode,
             "created_at": now_str,
             "candidate_profile": profile,
+            "current_stage": stage.value,
+            "is_finished": is_finished,
             "transcript_turns": [],
             "transcript_text": "[系統]: 面試開始。",
             "scoring_evaluation": "",
@@ -49,12 +54,17 @@ class SessionRepository:
             raise KeyError(f"Session '{session_id}' not found.")
         
         turn_idx = len(session["transcript_turns"]) + 1
+        stage, is_finished = interview_state_machine.get_stage_for_turn(turn_idx)
+        session["current_stage"] = stage.value
+        session["is_finished"] = is_finished
+
         session["transcript_turns"].append({
             "turn": turn_idx,
+            "stage": stage.value,
             "question": question_text,
             "answer": ""
         })
-        session["transcript_text"] += f"\n[考官]: {question_text}"
+        session["transcript_text"] += f"\n[考官 ({stage.value})]: {question_text}"
 
     def add_answer_turn(self, session_id: str, answer_text: str):
         session = self.get_session(session_id)
@@ -81,6 +91,8 @@ class SessionRepository:
                 "target_school": sess["target_school"],
                 "target_major": sess["target_major"],
                 "interview_mode": sess["interview_mode"],
+                "current_stage": sess["current_stage"],
+                "is_finished": sess.get("is_finished", False),
                 "created_at": sess["created_at"],
                 "total_turns": len(sess["transcript_turns"]),
                 "has_report": bool(sess["overall_strategic_report"])
