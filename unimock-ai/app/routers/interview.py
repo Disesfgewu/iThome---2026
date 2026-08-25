@@ -12,13 +12,15 @@ from app.services.security_guardrail import security_guardrail
 from app.services.context_manager import token_context_guard
 from app.services.state_machine import InterviewStage, interview_state_machine
 from app.services.followup_agent import followup_agent
+from app.services.memory_manager import memory_manager
 
 router = APIRouter(prefix="/api/interview", tags=["Interview Session & Chat"])
 
 @router.post("/setup", response_model=InterviewSetupResponse)
 async def setup_interview_session(req: InterviewSetupRequest):
     """
-    Initializes interview session, computes 3072-dim RAG vector embeddings, and generates initial question via Gemma-4-31B.
+    Initializes interview session, computes 3072-dim RAG vector embeddings, generates initial question via Gemma-4-31B,
+    and initializes LangChain ConversationTokenBufferMemory.
     """
     session_id = session_repository.create_session(
         target_school=req.target_school,
@@ -37,6 +39,11 @@ async def setup_interview_session(req: InterviewSetupRequest):
 
     first_question = rag_res["generated_question"]
     session_repository.add_question_turn(session_id, first_question)
+    
+    # Initialize LangChain Memory and record first AI question
+    memory_manager.get_or_create_messages(session_id)
+    memory_manager.add_ai_message(session_id, first_question)
+
     session = session_repository.get_session(session_id)
 
     return InterviewSetupResponse(
@@ -53,8 +60,8 @@ async def setup_interview_session(req: InterviewSetupRequest):
 async def submit_user_answer(req: AnswerSubmitRequest):
     """
     Submits user answer, runs SecurityGuardrail check, applies InterviewStateMachine stage instruction,
-    evaluates answer quality via FollowupAgent for Socratic probing, truncates context with TokenContextGuard,
-    and generates follow-up question via Gemma-4-31B.
+    evaluates answer quality via FollowupAgent for Socratic probing, updates LangChain Memory,
+    truncates context with TokenContextGuard, and generates follow-up question via Gemma-4-31B.
     """
     session = session_repository.get_session(req.session_id)
     if not session:
@@ -75,8 +82,9 @@ async def submit_user_answer(req: AnswerSubmitRequest):
     if not is_safe:
         raise HTTPException(status_code=400, detail=f"Input blocked by Security Guardrail: {reason}")
 
-    # 2. Update transcript history with user answer
+    # 2. Update transcript history & LangChain Memory with user answer
     session_repository.add_answer_turn(req.session_id, req.user_answer)
+    memory_manager.add_user_message(req.session_id, req.user_answer)
 
     # 3. Evaluate answer quality via FollowupAgent
     quality_eval = followup_agent.evaluate_answer_quality(req.user_answer)
@@ -91,7 +99,7 @@ async def submit_user_answer(req: AnswerSubmitRequest):
     next_stage, is_finished = interview_state_machine.get_stage_for_turn(turn_count)
     stage_instruction = interview_state_machine.get_stage_instruction(next_stage)
 
-    # 5. Truncate context with sliding-window TokenContextGuard
+    # 5. Truncate context with sliding-window TokenContextGuard / Memory Buffer String
     safe_transcript = token_context_guard.truncate_transcript(
         session["transcript_text"],
         max_tokens=3000
@@ -113,6 +121,7 @@ async def submit_user_answer(req: AnswerSubmitRequest):
     )
 
     session_repository.add_question_turn(req.session_id, next_question)
+    memory_manager.add_ai_message(req.session_id, next_question)
 
     return AnswerSubmitResponse(
         session_id=req.session_id,
