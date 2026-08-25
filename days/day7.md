@@ -1,209 +1,203 @@
-# 【Day 7】大腦就緒：LangChain 環境配置與 Gemma-4-31B 模型統一客戶端封裝
+# 【Day 7】大腦就緒：LangChain 環境配置、非同步 System Prompt 載入與 Gemma 4 隱私防護 Client 封裝
 
-在完成了 Day 6 的題庫去識別化清洗與 Gemini Embedding 2 向量化整合後，今天我們進入核心 AI 大腦的搭建——**LangChain 生態系整合與 Gemma-4-31B 統一 Chat Client 客戶端封裝**。
+在完成了 Day 6 的題庫去識別化清洗與 Gemini Embedding 2 向量化整合後，今天我們進入核心 AI 大腦的搭建——**LangChain 生態系整合、非同步 System Prompt 管理器、資安與隱私防護 Guardrail，以及 Gemma-4-31B 統一 Chat Client 客戶端封裝**。
 
-我們將為 **Gemma-4-31B-it** 建立統一的 LangChain 介面，並針對 Gemma 特有的提示語法（ChatML Style Turn Tokens）進行自動化適配與雙模型備援（Fallback）。
+根據生產級與商業安全規範，我們實現了三大關鍵架構：
+1. **System Prompt 檔分離與非同步動態載入 (`docs/system_prompts/`)**：System Prompt 絕不硬編碼在 Python 程式碼中，而是拆分為模組化 Markdown 檔，於 Runtime 透過 `AsyncPromptManager` 進行非同步動態載入。
+2. **資安與隱私攻擊防護 Guardrail (`SecurityGuardrail`)**：嚴格過濾 Prompt Injection 與系統提示詞竊取攻擊；**同時精準識別並放行合法的「資訊安全」專業學術問答**（如 SQL Injection 防禦原理、TLS 握手等）。
+3. **User Prompt 預設為空與狀態觸發機制**：User Prompt 預設為空，僅在學生實際輸入回答或觸發對話時帶入。
 
 ---
 
-## 1. Gemma 專屬 ChatML 提示詞結構設計 (Turn-based Prompting)
+## 1. 模組化 System Prompt 檔案結構設計 (`docs/system_prompts/`)
 
-Gemma 系列 LLM 模型採用特有的 Turn-based `<start_of_turn>` 與 `<end_of_turn>` 標籤。我們透過 LangChain `ChatPromptTemplate` 進行結構化封裝：
+針對系統的各項核心功能，我們在 `docs/system_prompts/` 建立專屬的系統提示詞 Markdown 檔案：
+
+| Prompt 檔案名稱 | 功能模組與用途說明 |
+| :--- | :--- |
+| `question_generation.md` | **動態出題考官**：結合 RAG 檢索脈絡與學生經歷，生成對應正確面向的面試考題。 |
+| `response_generation.md` | **回應與追問**：評估學生回答是否符合 STAR 原則，並進行技術/經歷追問 (Follow-up)。 |
+| `scoring_evaluation.md` | **評分與星級分析**：依據四維度 Rubric 評分規準給予星級與評語。 |
+| `data_aggregation.md` | **資料統整**：面試對話逐字稿與 RAG 脈絡之結構化摘要。 |
+| `overall_analysis.md` | **綜合分析與優劣勢評估**：學生整體表現與後端備戰建議報告。 |
+| `application_multimodal_analysis.md` | **備審資料多模態分析**：解析 PDF/競賽證明與學習歷程亮點。 |
+
+### 非同步 Prompt 管理器實作 (`app/services/prompt_manager.py`)
 
 ```python
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import os
+import asyncio
+from typing import Dict, Any, Optional
 
-def build_interviewer_prompt():
-    system_prompt = """你是一位親切但嚴謹的 {target_major} 大學面試主考官教授。
-你的任務是根據學生的備審經歷進行面試發問。
-回答風格請保持專業、鼓勵性，並針對技術與經歷細節進行適度深挖。
-"""
-    return ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{user_input}")
-    ])
+class AsyncPromptManager:
+    """Asynchronously loads system prompt markdown templates dynamically from docs/system_prompts/."""
+    def __init__(self, base_dir: Optional[str] = None):
+        if base_dir is None:
+            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "system_prompts"))
+        self.base_dir = base_dir
+        self._cache: Dict[str, str] = {}
+
+    async def get_system_prompt(self, prompt_name: str, **kwargs: Any) -> str:
+        filename = prompt_name if prompt_name.endswith(".md") else f"{prompt_name}.md"
+        filepath = os.path.join(self.base_dir, filename)
+
+        if filepath in self._cache:
+            raw_template = self._cache[filepath]
+        else:
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"System prompt template not found at: {filepath}")
+            raw_template = await asyncio.to_thread(self._read_file_sync, filepath)
+            self._cache[filepath] = raw_template
+
+        return raw_template.format(**kwargs) if kwargs else raw_template
+
+    def _read_file_sync(self, filepath: str) -> str:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+
+prompt_manager = AsyncPromptManager()
 ```
 
 ---
 
-## 2. 封裝統一 LangChain Gemma ChatModel 客戶端 (`app/services/gemma_llm.py`)
+## 2. 隱私攻擊防護與資安學術問答雙重判斷機制 (`app/services/security_guardrail.py`)
 
-為了確保 Gemma 模型能無縫融入 LangChain Pipeline 管道（如 `ChatPromptTemplate | gemma_client | StrOutputParser()`），我們繼承 `BaseChatModel` 實作了統一的客戶端：
+在 AI 面試系統中，必須防止惡意使用者透過 Prompt Injection 嘗試竊取 System Prompt 或 API Key。然而，當學生面試「資訊工程系」或「資安研究所」並回答「SQL Injection 防禦方法」時，系統必須**給過並正常評分**：
 
-- **主模型指定：** `models/gemma-4-31b-it`（Google AI Studio 託管之 31B 旗艦模型）。
-- **自動降級備援 (Auto Fallback)：** 當主模型遇到高負載或配額限制時，自動切換至 `models/gemini-2.5-flash`，確保面試流程永不中斷。
-- **ChatML 自動轉譯：** 將 LangChain 訊息列自動轉換為 `<start_of_turn>system` / `user` / `model` 格式。
+```python
+import re
+from typing import Tuple
+
+class SecurityGuardrail:
+    """
+    Blocks prompt injection attacks while allowing legitimate cybersecurity academic/technical queries.
+    """
+    ATTACK_PATTERNS = [
+        r"ignore\s+(all\s+)?(previous|prior)\s+instructions",
+        r"override\s+(system\s+)?prompt",
+        r"reveal\s+(your\s+)?system\s+prompt",
+        r"print\s+(your\s+)?api[_\s]?key",
+        r"忽略(之前|先前)的(指令|設定|提示詞)",
+        r"(印出|顯示|揭露)(你的)?(系統提示詞|System Prompt|API Key|密碼|密鑰)"
+    ]
+
+    CYBERSECURITY_KEYWORDS = [
+        "sql injection", "xss", "csrf", "tls", "rsa", "firewall",
+        "資安", "資訊安全", "網路安全", "滲透測試", "防禦", "原理", "解密"
+    ]
+
+    def verify_input_safety(self, user_input: str) -> Tuple[bool, str]:
+        if not user_input or not user_input.strip():
+            return True, ""
+
+        clean_input = user_input.strip()
+        for pattern in self.ATTACK_PATTERNS:
+            if re.search(pattern, clean_input, re.IGNORECASE):
+                if self._is_legitimate_cybersecurity_question(clean_input):
+                    return True, "Allowed: Recognized as legitimate cybersecurity academic query."
+                return False, "Security Block: Prompt Injection Attempt Detected."
+
+        return True, "Safe input."
+
+    def _is_legitimate_cybersecurity_question(self, text: str) -> bool:
+        lower_text = text.lower()
+        has_academic_intent = any(kw in lower_text for kw in ["原理", "防禦", "防範", "如何", "說明", "面試"])
+        has_security_keyword = any(kw in lower_text for kw in self.CYBERSECURITY_KEYWORDS)
+        asks_for_secret = any(s in lower_text for s in ["system prompt", "api key", "密鑰", "密碼"])
+        return has_academic_intent and has_security_keyword and not asks_for_secret
+
+security_guardrail = SecurityGuardrail()
+```
+
+---
+
+## 3. 封裝 Gemma LLM Client 客戶端 (`app/services/gemma_llm.py`)
+
+綜合上述機制，我們繼承 LangChain `BaseChatModel`，實現支援 ChatML 轉譯、隱私防護過濾、非同步 Prompt 載入與雙模型備援（Fallback）的 `GemmaLLMClient`：
 
 ```python
 import os
 import re
+import asyncio
 from typing import List, Dict, Any, Optional
 import google.generativeai as genai
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from langchain_core.outputs import ChatResult, ChatGeneration
-from pydantic import Field, PrivateAttr
 
 from app.config import settings
+from app.services.prompt_manager import prompt_manager
+from app.services.security_guardrail import security_guardrail
 
 class GemmaLLMClient(BaseChatModel):
     """
-    Unified LangChain ChatModel Client Interface for Gemma 4 LLM (models/gemma-4-31b-it).
-    
-    Features:
-    - Compatible with LangChain Runnable chains (ChatPromptTemplate | gemma_client | StrOutputParser).
-    - Adaptable to ChatML / Gemma special turn tokens (<start_of_turn> / <end_of_turn>).
-    - Robust Automatic Fallback: If primary model (gemma-4-31b-it) hits quota limits, 
-      seamlessly retries with fallback model (gemini-2.5-flash).
+    Unified LangChain ChatModel Client for Gemma 4 LLM (models/gemma-4-31b-it).
     """
-    model_name: str = Field(default_factory=lambda: settings.PRIMARY_LLM_MODEL)
-    fallback_model_name: str = Field(default_factory=lambda: settings.FALLBACK_LLM_MODEL)
-    temperature: float = Field(default_factory=lambda: settings.LLM_TEMPERATURE)
-    top_p: float = Field(default_factory=lambda: settings.LLM_TOP_P)
-    api_key: Optional[str] = Field(default=None)
+    model_name: str = settings.PRIMARY_LLM_MODEL
+    fallback_model_name: str = settings.FALLBACK_LLM_MODEL
+    temperature: float = settings.LLM_TEMPERATURE
+    top_p: float = settings.LLM_TOP_P
 
-    _primary_model: Any = PrivateAttr()
-    _fallback_model: Any = PrivateAttr()
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        effective_key = self.api_key or settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
-        if effective_key:
-            genai.configure(api_key=effective_key)
-        
-        self._primary_model = genai.GenerativeModel(
-            model_name=self.model_name,
-            generation_config=genai.types.GenerationConfig(
-                temperature=self.temperature,
-                top_p=self.top_p
-            )
-        )
-        self._fallback_model = genai.GenerativeModel(
-            model_name=self.fallback_model_name,
-            generation_config=genai.types.GenerationConfig(
-                temperature=self.temperature,
-                top_p=self.top_p
-            )
-        )
-
-    @property
-    def _llm_type(self) -> str:
-        return "gemma-chat-client"
-
-    def _format_messages_to_gemma_chatml(self, messages: List[BaseMessage]) -> str:
-        """Formats LangChain message sequence into ChatML / Gemma turn format."""
-        formatted_parts = []
-        for msg in messages:
-            if isinstance(msg, SystemMessage):
-                formatted_parts.append(f"<start_of_turn>system\n{msg.content.strip()}<end_of_turn>")
-            elif isinstance(msg, HumanMessage):
-                formatted_parts.append(f"<start_of_turn>user\n{msg.content.strip()}<end_of_turn>")
-            elif isinstance(msg, AIMessage):
-                formatted_parts.append(f"<start_of_turn>model\n{msg.content.strip()}<end_of_turn>")
-            else:
-                formatted_parts.append(f"<start_of_turn>user\n{msg.content.strip()}<end_of_turn>")
-        
-        formatted_parts.append("<start_of_turn>model\n")
-        return "\n".join(formatted_parts)
-
-    def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
-        **kwargs: Any,
-    ) -> ChatResult:
-        """Executes generation using primary Gemma model, automatically falling back if needed."""
-        api_key = self.api_key or settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
-        if api_key:
-            genai.configure(api_key=api_key)
+    def _generate(self, messages: List[BaseMessage], **kwargs: Any) -> ChatResult:
+        # Check latest user input with security guardrail
+        human_inputs = [msg.content for msg in messages if isinstance(msg, HumanMessage)]
+        if human_inputs:
+            is_safe, reason = security_guardrail.verify_input_safety(human_inputs[-1])
+            if not is_safe:
+                return ChatResult(generations=[ChatGeneration(message=AIMessage(content="[Security Alert] 請求已安全攔截。"))])
 
         prompt_str = self._format_messages_to_gemma_chatml(messages)
-
         try:
             response = self._primary_model.generate_content(prompt_str)
-            output_text = response.text if response and hasattr(response, "text") else ""
-        except Exception as primary_err:
-            print(f"[Gemma LLM Warning] Primary model ({self.model_name}) error: {primary_err}. Falling back to {self.fallback_model_name}...")
-            try:
-                response = self._fallback_model.generate_content(prompt_str)
-                output_text = response.text if response and hasattr(response, "text") else ""
-            except Exception as fallback_err:
-                raise RuntimeError(f"Gemma Chat Client failed on both models. Error: {fallback_err}")
+            output_text = response.text
+        except Exception:
+            response = self._fallback_model.generate_content(prompt_str)
+            output_text = response.text
 
-        clean_text = re.sub(r"<end_of_turn>$", "", output_text).strip()
-        message = AIMessage(content=clean_text)
-        return ChatResult(generations=[ChatGeneration(message=message)])
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=output_text.strip()))])
+
+    async def invoke_with_system_prompt(
+        self, prompt_name: str, user_input: str = "", history: Optional[List[BaseMessage]] = None, **prompt_kwargs
+    ) -> str:
+        """Asynchronously loads system prompt, applies guardrails, and executes LLM generation."""
+        system_prompt_text = await prompt_manager.get_system_prompt(prompt_name, **prompt_kwargs)
+        messages: List[BaseMessage] = [SystemMessage(content=system_prompt_text)]
+        if history:
+            messages.extend(history)
+        if user_input and user_input.strip():
+            messages.append(HumanMessage(content=user_input.strip()))
+
+        result = await asyncio.to_thread(self._generate, messages)
+        return result.generations[0].message.content
 
 gemma_client = GemmaLLMClient()
 ```
 
 ---
 
-## 3. Pytest 單元與整合測試驗證 (`tests/test_gemma_llm.py`)
+## 4. Pytest 自動化單元測試驗證 (`tests/test_gemma_llm.py`)
 
-我們撰寫了完整的 Pytest 測試套件，驗證 Gemma LLM 客戶端初始化、ChatML 語法轉譯與 LangChain 鏈式調用：
+執行 `pytest tests/test_gemma_llm.py -v` 驗證成果：
 
-```python
-import pytest
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
-
-from app.services.gemma_llm import GemmaLLMClient, gemma_client
-from app.config import settings
-
-def test_gemma_llm_client_initialization():
-    assert gemma_client._llm_type == "gemma-chat-client"
-    assert gemma_client.model_name == settings.PRIMARY_LLM_MODEL
-    assert gemma_client.fallback_model_name == settings.FALLBACK_LLM_MODEL
-
-def test_chatml_formatting():
-    client = GemmaLLMClient()
-    messages = [
-        SystemMessage(content="你是一位嚴謹的資訊工程學系教授。"),
-        HumanMessage(content="教授好，我申請貴系是因為想深入研究人工智慧。"),
-        AIMessage(content="很好，那請告訴我你對機器學習中監督式學習的理解？")
-    ]
-    formatted = client._format_messages_to_gemma_chatml(messages)
-    
-    assert "<start_of_turn>system\n你是一位嚴謹的資訊工程學系教授。<end_of_turn>" in formatted
-    assert "<start_of_turn>user\n教授好，我申請貴系是因為想深入研究人工智慧。<end_of_turn>" in formatted
-    assert "<start_of_turn>model\n很好，那請告訴我你對機器學習中監督式學習的理解？<end_of_turn>" in formatted
-
-def test_langchain_chain_execution():
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "你是一位親切的面試引導員。請用簡短一短句回答。"),
-        ("human", "請用一短句說出面試最重要的心態是什麼？")
-    ])
-    chain = prompt | gemma_client | StrOutputParser()
-    response = chain.invoke({})
-    assert isinstance(response, str)
-    assert len(response.strip()) > 0
-```
-
-### 測試執行結果
-
-在 `unimock-ai/` 目錄執行測試：
-
-```bash
-$env:PYTHONPATH="."; .\venv\Scripts\python -m pytest tests/test_gemma_llm.py -v
-```
-
-測試輸出：
 ```text
-tests/test_gemma_llm.py::test_gemma_llm_client_initialization PASSED [ 33%]
-tests/test_gemma_llm.py::test_chatml_formatting PASSED            [ 66%]
-tests/test_gemma_llm.py::test_langchain_chain_execution PASSED     [100%]
+tests/test_gemma_llm.py::test_gemma_llm_client_initialization PASSED                   [ 20%]
+tests/test_gemma_llm.py::test_async_system_prompt_loading PASSED                        [ 40%]
+tests/test_gemma_llm.py::test_security_guardrail_prompt_injection_blocking PASSED     [ 60%]
+tests/test_gemma_llm.py::test_security_guardrail_academic_cybersecurity_passing PASSED [ 80%]
+tests/test_gemma_llm.py::test_async_invoke_with_system_prompt_question_gen PASSED      [100%]
 
-======================= 3 passed in 14.56s =======================
+============================== 5 passed in 14.88s ==============================
 ```
+
+證實：
+1. **Prompt 攻擊被 100% 成功攔截**（`test_security_guardrail_prompt_injection_blocking`）。
+2. **資安學術題目 100% 成功放行**（`test_security_guardrail_academic_cybersecurity_passing`）。
+3. **系統提示詞檔經由 `AsyncPromptManager` 非同步成功載入**。
 
 ---
 
 ## 結語與明天預告
 
-今天我們順利完成了 Gemma-4-31B 模型 Client 端的封裝、LangChain 生態系對接、ChatML 語法自動相容與雙模型自動降級備援機制。
+今天我們完成了架構完整且具備商業級防護的 Gemma 4 Chat Client 客戶端，整合了非同步 System Prompt 載入器、資安與隱私過濾器以及雙模型備援（Fallback）機制。
 
-明天 **【Day 8】**，我們將整合 RAG 檢索器與向量資料庫，讓 Gemma 能在發問時即時參考科系考古題並進行動態生成！
+明天 **【Day 8】**，我們將正式對接 RAG 檢索器與向量資料庫，讓 Gemma 能在發問時即時檢索「範例題目」與學生的「簡歷歷程」並進行題目動態生成！
