@@ -127,7 +127,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   };
 
   return (
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 h-[calc(100vh-4rem)] flex flex-col gap-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6 pb-12">
       {/* Top Bar */}
       <div class="flex flex-wrap justify-between items-center bg-white border border-slate-200 rounded-xl px-6 py-3 shadow-xs gap-3">
         <div class="flex items-center gap-3">
@@ -154,32 +154,32 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
       </div>
 
       {/* Cockpit Main Grid */}
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left 5 cols: AI Professor & Question Card */}
         <div class="lg:col-span-5 flex flex-col gap-6">
           {/* Avatar Station */}
-          <div class="bg-white border border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center relative shadow-xs">
-            <div class="relative mb-4">
-              <div class="absolute -inset-2 rounded-full bg-indigo-100 animate-pulse opacity-75"></div>
+          <div class="bg-white border border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center text-center relative shadow-xs">
+            <div class="relative mb-3">
+              <div class="absolute -inset-1.5 rounded-full bg-indigo-100 animate-pulse opacity-75"></div>
               <img
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqC2pswO3FPBlDhCffhVeyAiggy-MwnKLaeCaR2Bi1xt40tuF6z3-2IBQpaRCcwDI8Q9k3biVci6SnumJRP8JgxSxaFE8jQ_O7q9oVD4LUP9qms6ZkLp-0KZ1xvOt77vJf1Zr6tASz6IUy5FRQeqlOSxaePbpJ8Pa8b1673yRkz5H5TzAfMZiqAkQ2uT0OFWDZUId7AsL-C0psn1DVHIq1in5MyBhp2p0Qum4mf7xIXoLvyA7yhkhD"
                 alt="AI Professor"
-                class="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md relative z-10"
+                class="w-20 h-20 rounded-full object-cover border-3 border-white shadow-md relative z-10"
               />
             </div>
             <WaveformBar isSpeaking={true} />
-            <span class="text-xs font-mono font-bold text-indigo-600 tracking-widest uppercase mt-3">
+            <span class="text-xs font-mono font-bold text-indigo-600 tracking-widest uppercase mt-2">
               Gemma-4-31B 面試官發話中
             </span>
           </div>
 
           {/* Core Question Card */}
-          <div class="bg-white border-l-4 border-l-indigo-600 border border-slate-200 rounded-xl p-6 flex-1 flex flex-col justify-between shadow-xs">
+          <div class="bg-white border-l-4 border-l-indigo-600 border border-slate-200 rounded-xl p-6 flex flex-col justify-between shadow-xs min-h-[220px]">
             <div>
               <div class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
                 <span class="flex items-center gap-2">
                   <span class="material-symbols-outlined text-indigo-600 text-sm">psychology</span>
-                  核心發問 (Question)
+                  核心發問 (Question {currentIdx + 1})
                 </span>
                 {tierInfo.isTopTier && (
                   <span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-bold font-mono">
@@ -187,24 +187,42 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
                   </span>
                 )}
               </div>
-              <p class="text-lg font-bold text-slate-900 leading-relaxed min-h-[100px]">
+              <p class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed">
                 {displayedQuestion}
               </p>
             </div>
-            <p class="text-xs text-slate-400 font-mono mt-4">
-              請具體說明您採用的技術架構與衡量指標。
+            <p class="text-xs text-slate-400 font-mono mt-4 pt-3 border-t border-slate-100">
+              請具體說明您採用的技術架構、問題拆解邏輯與量化成果指標。
             </p>
           </div>
         </div>
 
         {/* Right 7 cols: STT Transcription & Cockpit Controls */}
         <div class="lg:col-span-7 flex flex-col gap-6">
+          {/* Previous Dialogue History if any */}
+          {sessionData.dialogueHistory && sessionData.dialogueHistory.length > 0 && (
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs">
+              <div class="text-xs font-mono font-bold text-slate-600 uppercase flex items-center gap-2 mb-2">
+                <span class="material-symbols-outlined text-indigo-600 text-sm">history</span>
+                過往對話歷程 (第 {sessionData.dialogueHistory.length} 輪作答摘要)
+              </div>
+              <div class="space-y-2 text-xs">
+                {sessionData.dialogueHistory.slice(-1).map((item, idx) => (
+                  <div key={idx} class="bg-white border border-slate-200 rounded-lg p-3">
+                    <p class="font-bold text-indigo-900 mb-1">Q{item.turn}: {item.question}</p>
+                    <p class="text-slate-700 text-xs leading-relaxed"><span class="font-bold text-slate-900">考生作答：</span>{item.answer}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Real-time STT Card */}
-          <div class="bg-white border border-slate-200 rounded-xl p-6 flex-1 flex flex-col relative shadow-xs">
+          <div class="bg-white border border-slate-200 rounded-xl p-6 flex flex-col relative shadow-xs">
             <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
               <span class="text-xs font-mono font-bold text-slate-600 uppercase flex items-center gap-2">
                 <span class="material-symbols-outlined text-sm">closed_caption</span>
-                即時語音轉文字 (STT) 應答區
+                即時語音轉文字 (STT) 應答區 (第 {currentIdx + 1} 題作答)
               </span>
               <span class="text-xs font-mono text-indigo-600 flex items-center gap-1">
                 <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -213,10 +231,11 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
             </div>
 
             <textarea
+              rows="6"
               value={candidateAnswer}
               onChange={(e) => setCandidateAnswer(e.target.value)}
               placeholder="請點擊下方麥克風按鈕開口說話，或直接輸入回答..."
-              class="w-full flex-1 bg-slate-50 border border-slate-200 rounded-lg p-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base leading-relaxed resize-none"
+              class="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base leading-relaxed resize-none"
             />
           </div>
 
@@ -234,13 +253,13 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
             <div class="flex flex-col items-center justify-center">
               <button
                 onClick={toggleRecording}
-                class={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg transition-all ${
+                class={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-all ${
                   isRecording
                     ? 'bg-red-600 animate-mvPulse'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
-                <span class="material-symbols-outlined text-3xl">mic</span>
+                <span class="material-symbols-outlined text-2xl">mic</span>
               </button>
             </div>
 
