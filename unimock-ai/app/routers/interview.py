@@ -11,6 +11,7 @@ from app.services.gemma_llm import gemma_client
 from app.services.security_guardrail import security_guardrail
 from app.services.context_manager import token_context_guard
 from app.services.state_machine import InterviewStage, interview_state_machine
+from app.services.followup_agent import followup_agent
 
 router = APIRouter(prefix="/api/interview", tags=["Interview Session & Chat"])
 
@@ -52,7 +53,8 @@ async def setup_interview_session(req: InterviewSetupRequest):
 async def submit_user_answer(req: AnswerSubmitRequest):
     """
     Submits user answer, runs SecurityGuardrail check, applies InterviewStateMachine stage instruction,
-    truncates context with TokenContextGuard, and generates follow-up question via Gemma-4-31B.
+    evaluates answer quality via FollowupAgent for Socratic probing, truncates context with TokenContextGuard,
+    and generates follow-up question via Gemma-4-31B.
     """
     session = session_repository.get_session(req.session_id)
     if not session:
@@ -76,23 +78,35 @@ async def submit_user_answer(req: AnswerSubmitRequest):
     # 2. Update transcript history with user answer
     session_repository.add_answer_turn(req.session_id, req.user_answer)
 
-    # 3. Determine next turn stage instruction from InterviewStateMachine
+    # 3. Evaluate answer quality via FollowupAgent
+    quality_eval = followup_agent.evaluate_answer_quality(req.user_answer)
+    socratic_instruction = followup_agent.build_socratic_prompt(
+        question=session["transcript_turns"][-1]["question"],
+        answer=req.user_answer,
+        quality_eval=quality_eval
+    )
+
+    # 4. Determine next turn stage instruction from InterviewStateMachine
     turn_count = len(session["transcript_turns"]) + 1
     next_stage, is_finished = interview_state_machine.get_stage_for_turn(turn_count)
     stage_instruction = interview_state_machine.get_stage_instruction(next_stage)
 
-    # 4. Truncate context with sliding-window TokenContextGuard
+    # 5. Truncate context with sliding-window TokenContextGuard
     safe_transcript = token_context_guard.truncate_transcript(
         session["transcript_text"],
         max_tokens=3000
     )
 
-    # 5. Generate follow-up response / question via Gemma-4-31B with stage instruction
-    user_prompt_with_stage = f"{stage_instruction}\n【學生最新回答】：{req.user_answer}"
+    # 6. Generate follow-up response / question via Gemma-4-31B with stage & socratic instructions
+    user_prompt_with_instructions = (
+        f"{stage_instruction}\n"
+        f"{socratic_instruction}\n"
+        f"【學生最新回答】：{req.user_answer}"
+    )
 
     next_question = await gemma_client.invoke_with_system_prompt(
         prompt_name="response_generation",
-        user_input=user_prompt_with_stage,
+        user_input=user_prompt_with_instructions,
         target_major=session["target_major"],
         candidate_profile=session["candidate_profile"].to_structured_text(),
         transcript=safe_transcript
