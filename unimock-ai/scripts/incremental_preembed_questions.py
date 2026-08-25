@@ -28,7 +28,6 @@ def embed_with_retry(text: str, max_retries: int = 10):
         except Exception as e:
             err_msg = str(e)
             if "429" in err_msg or "Quota" in err_msg or "Resource" in err_msg:
-                # Try to extract retry_delay from Google API error message
                 match = re.search(r"retry in ([0-9\.]+)s", err_msg, re.IGNORECASE)
                 if match:
                     wait_sec = float(match.group(1)) + 2.0
@@ -93,8 +92,12 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
             updated_count += 1
 
             if processed_count % 5 == 0 or i == actual_end - 1:
-                safe_text = q_text[:20].encode("ascii", "ignore").decode("ascii") or "question_text"
-                print(f"[EMBED {q_id}] Progress: [{i + 1}/{actual_end}] Computed 3072-dim vector for '{safe_text}...'")
+                # Format snippet safely for terminal
+                snippet = q_text[:15].replace("\n", " ").replace("\r", "")
+                try:
+                    print(f"[EMBED {q_id}] Progress: [{i + 1}/{actual_end}] Computed 3072-dim vector for '{snippet}...'")
+                except UnicodeEncodeError:
+                    print(f"[EMBED {q_id}] Progress: [{i + 1}/{actual_end}] Computed 3072-dim vector.")
 
             # Periodically save updated database every batch_save_interval items
             if updated_count % batch_save_interval == 0:
