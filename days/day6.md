@@ -113,18 +113,26 @@ graph TD
 - **`difficulty_level`（難易度標籤用途）**：
   供後端依面試情境彈性過濾題目難易度（如：基礎觀念的「標準題」、技術深入的「進階專業題」、開放題型的「高難度申論題」）。
 
-#### 6. RAG 知識檢索與 LLM 動態題目生成架構 (RAG + LLM Dynamic Question Generation)
+#### 6. RAG 範例題目檢索與 LLM 履歷目標結合生成架構 (Sample Questions Retrieval + Resume/Goal Tailored LLM Generation)
 
-**關鍵核心設計：面試題目絕非直接抓取資料庫文字直接輸出！**
+**關鍵核心設計：面試題目絕非直接拿資料庫相似度文字直接輸出！**
 
-本資料庫 (`interview_questions_db.json`) 與 `QuestionRepository` 在整體系統中扮演的是 **「RAG 知識檢索器 (RAG Knowledge Retriever & Seed Context)」** 的角色：
+本資料庫 (`interview_questions_db.json`) 與 `QuestionRepository` 在整體系統中扮演的是 **「檢索範例題目與語意脈絡 (Sample / Seed Questions Retrieval)」** 的角色：
 
-1. **RAG 脈絡種子 (Context Seeds)**：
-   `QuestionRepository` 根據搜尋條件進行向量相似度與多維度過濾，抽取出相關度最高的題庫種子、 Rubric 評分規準與參考擬答。
-2. **結合 LLM (Gemma / Gemini) 實時動態生成**：
-   後端 LLM 引擎將 **RAG 檢索脈絡 + 學生個人背景歷程 + 目標校系 + 教授 Persona 角色** 進行綜合 Prompt 提示詞封裝，交由 LLM **動態合成、改寫並生成**全新且極具專屬感的面試考題！
+```mermaid
+graph TD
+    A["User 簡歷資訊 + 過去經歷 + 目標校系"] --> B["後端考官生成引擎"]
+    C["資料庫向量搜尋 (QuestionRepository)"] -->|檢索| D["領域範例題目 (Sample Questions) + 擬答評分範本"]
+    D --> B
+    B -->|LLM 動態結合與重組| E["生成對應正確面向的客製化面試考題"]
+```
+
+1. **檢索「範例題目 (Sample Questions)」**：
+   `QuestionRepository` 利用向量相似度與分類標籤過濾，從資料庫中拿出最相關的**「範例題目 (Sample Questions)」**、評分規準與參考擬答，作為 LLM 提示詞中的參考範本（Few-Shot Seed Context）。
+2. **結合 User 簡歷資訊與目標學系動態生成**：
+   後端 LLM 引擎（Gemma-4-31B / Gemini）取得範例題目後，進一步結合 **User 的簡歷資訊（背景、幹部經驗、專案經歷、證照與亮點）** 與 **目標學校/學系**，讓 LLM 針對學生個案發掘切入點，**動態生成切中正確面向與契合度的專屬面試題目**！
 3. **後端架構藍圖預告**：
-   後面進行 FastAPI 後端工程設計時，我們將依據作者提供的**完整後端設計圖（Backend Architecture Blueprint）**，實作這套結合 RAG 檢索與 LLM 動態題型合成的引擎！
+   後面進行 FastAPI 後端工程設計時，我們將依據作者提供的**完整後端設計圖（Backend Architecture Blueprint）**，實作這套「範例題目檢索 + 履歷目標結合」的 LLM 動態生成引擎！
 
 #### 7. 跨系通用題與英語口試特別規範
 
