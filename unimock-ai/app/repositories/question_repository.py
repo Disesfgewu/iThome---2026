@@ -5,9 +5,9 @@ from app.services.embedding_service import embedding_service
 
 class QuestionRepository:
     """
-    De-identified Unified Question Repository.
-    Does not bind to specific schools. Queries are scoped by Department Group, Department,
-    Question Category (通用型問題 vs 技術專業型問題), and Difficulty Level.
+    De-identified Unified Question Repository with Pre-embedded Vector Support.
+    Queries are scoped by Department Group, Department, Question Category, and Difficulty Level.
+    Vector similarity search uses pre-embedded 768-dimensional vectors stored in the JSON DB.
     """
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -82,7 +82,8 @@ class QuestionRepository:
 
     def search_similar_questions(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
         """
-        Uses Gemini Embedding 2 model to perform vector similarity search on de-identified questions.
+        Uses Gemini Embedding 2 model for query vector calculation (1 API call),
+        then performs instant dot product / cosine similarity against pre-embedded vectors in DB!
         """
         if not query_text or not self._questions:
             return [dict(q) for q in self._questions[:top_k]]
@@ -91,7 +92,11 @@ class QuestionRepository:
 
         scored_questions = []
         for q in self._questions:
-            doc_vec = embedding_service.embed_query(q.get("question", ""))
+            # Use pre-stored embedding if available; fallback to live calculation if not yet pre-embedded
+            doc_vec = q.get("embedding")
+            if not doc_vec:
+                doc_vec = embedding_service.embed_query(q.get("question", ""))
+
             dot_product = sum(a * b for a, b in zip(query_vec, doc_vec))
             scored_questions.append((dot_product, dict(q)))
 
@@ -100,11 +105,16 @@ class QuestionRepository:
 
     def add_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Safely adds a new de-identified question to the repository and updates DB.
+        Safely adds a new de-identified question to the repository and calculates pre-embedding vector.
         """
         new_id = f"q_{len(self._questions) + 1:04d}"
         question_data["id"] = new_id
         question_data["deidentified"] = True
+        
+        # Pre-embed new question text
+        if "embedding" not in question_data:
+            question_data["embedding"] = embedding_service.embed_query(question_data.get("question", ""))
+            
         self._questions.append(question_data)
         self.save_database()
         return dict(question_data)

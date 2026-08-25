@@ -53,50 +53,69 @@
 
 為了支援高精度的面試題目語意相似度檢索，我們採用 Google AI Studio 託管的旗艦 Embedding 模型 **Gemini Embedding 2** (`models/text-embedding-004`)。
 
-### A. Embedding 配置 Prompt & 程式碼範例
+### B. 2000+ 筆分批 Pre-embedding 預處理腳本 (`scripts/batch_preembed_questions.py`)
+
+為了避免每次面試搜尋時動態對 2000+ 筆題目發起數千次 Gemini API 請求，我們採用 **預先向量化 (Pre-embedding)** 策略：
+
+1. **分批腳本架構：** 支援 `--start` 與 `--end` 參數，允許彈性分批（例如第一批第 1 ~ 1000 筆，第二批第 1001 ~ 2045 筆）進行預處理。
+2. **預向量儲存：** 計算後之 768 維 Dense Vector 直接寫入 JSON 向量資料庫（`q["embedding"]`），實現毫秒級線上 Cosine Similarity 比對。
 
 ```python
+import argparse
+import json
 import os
-import math
-from typing import List
-import google.generativeai as genai
-from app.config import settings
+import sys
+from app.services.embedding_service import embedding_service
 
-class GeminiEmbeddingService:
+def batch_preembed(db_filepath: str, start_idx: int, end_idx: int):
     """
-    Google AI Studio Gemini Embedding 2 (text-embedding-004) Model Wrapper.
+    Pre-embeds questions in batches from start_idx to end_idx using Gemini Embedding 2 model.
+    Saves pre-computed 768-dimensional float vectors directly into the JSON database.
     """
-    def __init__(self, model_name: str = "models/text-embedding-004"):
-        self.model_name = model_name
-        self.api_key = settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
-        if self.api_key:
-            genai.configure(api_key=self.api_key)
+    if not os.path.exists(db_filepath):
+        print(f"Error: Database file {db_filepath} not found!")
+        return
 
-    def embed_query(self, text: str) -> List[float]:
-        """Generate 768-dimensional normalized embedding vector for query."""
-        if not text or not text.strip():
-            return [0.0] * 768
+    with open(db_filepath, "r", encoding="utf-8") as f:
+        questions = json.load(f)
 
-        if self.api_key:
-            try:
-                result = genai.embed_content(
-                    model=self.model_name,
-                    content=text,
-                    task_type="retrieval_query"
-                )
-                embedding = result.get("embedding", [])
-                if embedding:
-                    return self._normalize(embedding)
-            except Exception as e:
-                print(f"[GeminiEmbeddingService] API Warning: {e}. Fallback to pseudo-vector.")
+    total_count = len(questions)
+    actual_end = min(end_idx, total_count)
+    
+    print(f"Target Processing Range: Item {start_idx + 1} to {actual_end}")
 
-        return self._pseudo_embedding(text)
+    processed_count = 0
+    for i in range(start_idx, actual_end):
+        q_item = questions[i]
+        q_text = q_item.get("question", "")
 
-    def _normalize(self, vec: List[float]) -> List[float]:
-        norm = math.sqrt(sum(x * x for x in vec))
-        return [x / norm for x in vec] if norm > 0 else vec
+        # Compute 768-dim vector embedding
+        vec = embedding_service.embed_query(q_text)
+        q_item["embedding"] = vec
+        processed_count += 1
 
-embedding_service = GeminiEmbeddingService()
+    # Save updated vector database
+    with open(db_filepath, "w", encoding="utf-8") as f:
+        json.dump(questions, f, ensure_ascii=False, indent=2)
+
+    print(f"Successfully pre-embedded {processed_count} items (Range: {start_idx + 1} ~ {actual_end}).")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Batch Pre-embedding Script for UniMock AI")
+    parser.add_argument("--start", type=int, default=0, help="Start index (0-based)")
+    parser.add_argument("--end", type=int, default=1000, help="End index (exclusive)")
+    args = parser.parse_args()
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "app", "db", "interview_questions_db.json")
+    batch_preembed(db_path, args.start, args.end)
+```
+
+### C. 第一批 (1 ~ 1000 筆) 預處理執行指令
+
+在 `unimock-ai/` 環境下執行：
+
+```bash
+python scripts/batch_preembed_questions.py --start 0 --end 1000
 ```
 
 ---
@@ -189,6 +208,6 @@ tests/test_repository.py .... [100%]
 
 ## 結語與明天預告
 
-今天我們順利完成 2,045 筆題庫去識別化清洗、Gemini Embedding 2 向量化整合與 Repository 安全儲存庫模式實作。
+今天我們順利完成題庫去識別化清洗、Gemini Embedding 2 向量化整合與 Repository 安全儲存庫模式實作。
 
 明天 **【Day 7】**，我們將進行 **LangChain 環境配置與 Gemma-4-31B 模型 ChatML 提示樣板客製化串接**！
