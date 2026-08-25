@@ -7,7 +7,7 @@ class QuestionRepository:
     """
     De-identified Unified Question Repository with Pre-embedded Vector Support.
     Queries are scoped by Department Group, Department, Question Category, and Difficulty Level.
-    Vector similarity search uses pre-embedded 768-dimensional vectors stored in the JSON DB.
+    Vector similarity search uses pre-embedded 3072-dimensional vectors stored in the JSON DB.
     """
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -80,28 +80,52 @@ class QuestionRepository:
 
         return matched
 
-    def search_similar_questions(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    def search_similar_questions_by_vector(
+        self,
+        query_vec: List[float],
+        department: Optional[str] = None,
+        department_group: Optional[str] = None,
+        top_k: int = 3
+    ) -> List[Dict[str, Any]]:
         """
-        Uses Gemini Embedding 2 model for query vector calculation (1 API call),
-        then performs instant dot product / cosine similarity against pre-embedded vectors in DB!
+        Performs cosine similarity search using candidate profile query vector (3072 dims)
+        against pre-embedded vectors in DB with optional department filtering.
         """
-        if not query_text or not self._questions:
+        if not query_vec or not self._questions:
             return [dict(q) for q in self._questions[:top_k]]
 
-        query_vec = embedding_service.embed_query(query_text)
+        candidates = self._questions
+        if department and department.strip():
+            filtered = [
+                q for q in self._questions
+                if department in q.get("department", "") or "通用" in q.get("department", "")
+            ]
+            if filtered:
+                candidates = filtered
 
         scored_questions = []
-        for q in self._questions:
-            # Use pre-stored embedding if available; fallback to live calculation if not yet pre-embedded
+        for q in candidates:
             doc_vec = q.get("embedding")
-            if not doc_vec:
-                doc_vec = embedding_service.embed_query(q.get("question", ""))
+            if not doc_vec or len(doc_vec) != 3072:
+                # Skip or fallback if embedding is missing
+                continue
 
             dot_product = sum(a * b for a, b in zip(query_vec, doc_vec))
             scored_questions.append((dot_product, dict(q)))
 
         scored_questions.sort(key=lambda x: x[0], reverse=True)
         return [q for score, q in scored_questions[:top_k]]
+
+    def search_similar_questions(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Uses Gemini Embedding 2 model to calculate query vector (3072 dims),
+        then performs instant dot product / cosine similarity against pre-embedded DB vectors.
+        """
+        if not query_text or not self._questions:
+            return [dict(q) for q in self._questions[:top_k]]
+
+        query_vec = embedding_service.embed_query(query_text)
+        return self.search_similar_questions_by_vector(query_vec, top_k=top_k)
 
     def add_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -111,7 +135,6 @@ class QuestionRepository:
         question_data["id"] = new_id
         question_data["deidentified"] = True
         
-        # Pre-embed new question text
         if "embedding" not in question_data:
             question_data["embedding"] = embedding_service.embed_query(question_data.get("question", ""))
             
