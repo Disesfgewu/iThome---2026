@@ -36,7 +36,7 @@ async def run_day12_live_tests():
         session_data = res.json()
         session_id = session_data["session_id"]
         print(f"Session Created: {session_id} | Stage: {session_data['current_stage']}", flush=True)
-        print(f"Q1 (INTRO):\n{session_data['first_question'][:150]}...\n", flush=True)
+        print(f"Q1 (INTRO):\n{session_data['first_question']}\n", flush=True)
 
         # Answer 1 (Moves to PORTFOLIO_DEEP_DIVE)
         res = await client.post("/api/interview/answer", json={
@@ -44,7 +44,7 @@ async def run_day12_live_tests():
             "user_answer": "教授好，我對貴系非常有熱情，高中曾參與軟體專案開發與競賽，主要研究資料結構優化與系統效能改善..."
         })
         ans_data = res.json()
-        print(f"Q2 ({ans_data['current_stage']}):\n{ans_data['next_question'][:150]}...\n", flush=True)
+        print(f"Q2 ({ans_data['current_stage']}):\n{ans_data['next_question']}\n", flush=True)
 
     print("==================================================", flush=True)
     print("Day 12 State Machine Live Test Completed Successfully!", flush=True)
