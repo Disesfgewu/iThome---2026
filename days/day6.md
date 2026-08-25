@@ -10,7 +10,7 @@
 本專案的原始面試題庫資料（位於 `datas/interview_questions_rows.csv`）是由**網路公開之各校系二階面試題庫資料**進行採集，結合**作者實戰面試經驗**進行修飾，並透過 **Gemini Chat** 與 **Claude Chat** 雙大語言模型進行深度資料清洗。
 
 為了維護通用性與隱私安全，我們執行了 **「去識別化 (De-identification)」** 處理：
-- **解除具體學校綁定：** 資料庫紀錄不再綁定特定大專院校名稱（`school`），改為通用開放題目。
+- **解除具體學校綁定：** 資料庫紀錄不綁定特定大專院校名稱（`school`），改為通用開放題目。
 - **維護核心維度綁定：** 題庫精確綁定 **`department_group` (目標學群)**、**`department` (目標學系)**、**`question_category` (通用型問題 vs 技術專業型問題)** 以及 **`difficulty_level` (標準題 / 進階專業題 / 高難度申論題)**。
 
 ### B. Gemini / Claude 資料清洗 Prompt 紀錄

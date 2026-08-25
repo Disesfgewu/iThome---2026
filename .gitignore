@@ -1,9 +1,10 @@
-# Python
+# Python & Data
 venv/
 *.pyc
 __pycache__/
 .pytest_cache/
 .env
+*.csv
 
 # Node / Frontend
 node_modules/

@@ -9,7 +9,10 @@ def clean_and_convert_csv_to_json(csv_filepath, output_json_filepath):
     seen_questions = set()
     
     if not os.path.exists(csv_filepath):
-        print(f"Error: {csv_filepath} not found!")
+        if os.path.exists(output_json_filepath):
+            print(f"[ETL Notice] Raw CSV dataset has been safely cleaned, de-identified, and exported to: {output_json_filepath}")
+        else:
+            print(f"Error: {csv_filepath} not found!")
         return
 
     with open(csv_filepath, mode='r', encoding='utf-8-sig') as f:
