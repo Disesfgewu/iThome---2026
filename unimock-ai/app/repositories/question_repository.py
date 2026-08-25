@@ -1,14 +1,13 @@
 import json
 import os
-import math
 from typing import List, Dict, Any, Optional
 from app.services.embedding_service import embedding_service
 
 class QuestionRepository:
     """
-    Unified Question Repository Layer.
-    Encapsulates raw JSON database operations and vector similarity searches.
-    Prevents direct unsafe mutation of DB state from business routers.
+    De-identified Unified Question Repository.
+    Does not bind to specific schools. Queries are scoped by Department Group, Department,
+    Question Category (通用型問題 vs 技術專業型問題), and Difficulty Level.
     """
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -18,7 +17,7 @@ class QuestionRepository:
         self.load_database()
 
     def load_database(self) -> None:
-        """Loads question bank from JSON storage safely."""
+        """Loads de-identified questions from JSON storage safely."""
         if os.path.exists(self.db_path):
             with open(self.db_path, "r", encoding="utf-8") as f:
                 self._questions = json.load(f)
@@ -32,7 +31,7 @@ class QuestionRepository:
             json.dump(self._questions, f, ensure_ascii=False, indent=2)
 
     def get_all_questions(self) -> List[Dict[str, Any]]:
-        """Returns a read-only copy of all questions."""
+        """Returns a read-only copy of all de-identified questions."""
         return list(self._questions)
 
     def get_question_by_id(self, question_id: str) -> Optional[Dict[str, Any]]:
@@ -44,21 +43,17 @@ class QuestionRepository:
 
     def get_questions_by_filter(
         self,
-        school: Optional[str] = None,
         department_group: Optional[str] = None,
         department: Optional[str] = None,
-        question_type: Optional[str] = None,
+        question_category: Optional[str] = None,
+        difficulty_level: Optional[str] = None,
         limit: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Retrieves matching interview questions based on target school, group, department, and question type.
+        Retrieves matching de-identified interview questions filtered by group, department, category, and difficulty.
         """
         matched = []
         for q in self._questions:
-            if school and school not in q.get("school", "") and q.get("school") != "通用大學":
-                # Match partial or fallback
-                pass
-            
             if department and department.strip():
                 if department not in q.get("department", "") and "通用" not in q.get("department", ""):
                     continue
@@ -67,15 +62,19 @@ class QuestionRepository:
                 if department_group not in q.get("department_group", ""):
                     continue
 
-            if question_type and question_type.strip():
-                if q.get("question_type") != question_type:
+            if question_category and question_category.strip():
+                if q.get("question_category") != question_category:
+                    continue
+
+            if difficulty_level and difficulty_level.strip():
+                if q.get("difficulty_level") != difficulty_level:
                     continue
 
             matched.append(dict(q))
             if len(matched) >= limit:
                 break
 
-        # Fallback if specific filters return empty results
+        # Fallback if specific combination returns empty results
         if not matched:
             matched = [dict(q) for q in self._questions[:limit]]
 
@@ -83,7 +82,7 @@ class QuestionRepository:
 
     def search_similar_questions(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
         """
-        Uses Gemini Embedding 2 model to perform vector similarity search on interview questions.
+        Uses Gemini Embedding 2 model to perform vector similarity search on de-identified questions.
         """
         if not query_text or not self._questions:
             return [dict(q) for q in self._questions[:top_k]]
@@ -92,10 +91,7 @@ class QuestionRepository:
 
         scored_questions = []
         for q in self._questions:
-            q_text = q.get("question", "")
-            doc_vec = embedding_service.embed_query(q_text)
-            
-            # Cosine similarity calculation
+            doc_vec = embedding_service.embed_query(q.get("question", ""))
             dot_product = sum(a * b for a, b in zip(query_vec, doc_vec))
             scored_questions.append((dot_product, dict(q)))
 
@@ -104,10 +100,11 @@ class QuestionRepository:
 
     def add_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Safely adds a new question to the repository and updates DB.
+        Safely adds a new de-identified question to the repository and updates DB.
         """
         new_id = f"q_{len(self._questions) + 1:04d}"
         question_data["id"] = new_id
+        question_data["deidentified"] = True
         self._questions.append(question_data)
         self.save_database()
         return dict(question_data)
