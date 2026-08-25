@@ -53,12 +53,13 @@
 
 為了支援高精度的面試題目語意相似度檢索，我們採用 Google AI Studio 託管的旗艦 Embedding 模型 **Gemini Embedding 2** (`models/text-embedding-004`)。
 
-### B. 2000+ 筆分批 Pre-embedding 預處理腳本 (`scripts/batch_preembed_questions.py`)
+### B. 編號追溯與增量自動跳過預處理腳本 (`scripts/incremental_preembed_questions.py`)
 
-為了避免每次面試搜尋時動態對 2000+ 筆題目發起數千次 Gemini API 請求，我們採用 **預先向量化 (Pre-embedding)** 策略：
+為了避免每次面試搜尋時動態對 2000+ 筆題目發起數千次 Gemini API 請求，並因應未來**不斷擴充 JSON 題庫**的需求，我們設計了具備 **編號追溯 (ID Traceability)** 與 **增量自動跳過 (Auto-Skip Existing)** 機制的預處理腳本：
 
-1. **分批腳本架構：** 支援 `--start` 與 `--end` 參數，允許彈性分批（例如第一批第 1 ~ 1000 筆，第二批第 1001 ~ 2045 筆）進行預處理。
-2. **預向量儲存：** 計算後之 768 維 Dense Vector 直接寫入 JSON 向量資料庫（`q["embedding"]`），實現毫秒級線上 Cosine Similarity 比對。
+1. **唯一 ID 追溯：** 每一筆題庫資料皆保留 `id` 欄位（如 `q_0001`、`q_0002`），在預處理前後皆能精確對照查找。
+2. **自動跳過已轉過之題目：** 腳本會自動檢測 `q.get("embedding")` 是否已存在。若已計算過則自動跳過（`[SKIP q_0001]`），不消耗任何 API Token；僅針對新增或未向量化之題目發起 Gemini 請求。
+3. **無縫資料擴充：** 未來任何時候新增題目進 `interview_questions_db.json` 後，直接執行該腳本即可完成增量向量擴充。
 
 ```python
 import argparse
@@ -67,54 +68,67 @@ import os
 import sys
 from app.services.embedding_service import embedding_service
 
-def batch_preembed(db_filepath: str, start_idx: int, end_idx: int):
+def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False):
     """
-    Pre-embeds questions in batches from start_idx to end_idx using Gemini Embedding 2 model.
-    Saves pre-computed 768-dimensional float vectors directly into the JSON database.
+    Incremental Vector Pre-embedding Engine for UniMock AI.
+    - Unique Question IDs (e.g., q_0001) for clear traceability.
+    - Automatically detects and SKIPS questions that already have calculated embeddings.
+    - Enables seamless data expansion when new questions are appended to JSON DB.
     """
     if not os.path.exists(db_filepath):
-        print(f"Error: Database file {db_filepath} not found!")
         return
 
     with open(db_filepath, "r", encoding="utf-8") as f:
         questions = json.load(f)
 
     total_count = len(questions)
-    actual_end = min(end_idx, total_count)
-    
-    print(f"Target Processing Range: Item {start_idx + 1} to {actual_end}")
+    actual_end = total_count if end_idx is None or end_idx > total_count else end_idx
 
-    processed_count = 0
+    skipped_count = 0
+    updated_count = 0
+
     for i in range(start_idx, actual_end):
         q_item = questions[i]
+        q_id = q_item.get("id", f"q_{i+1:04d}")
         q_text = q_item.get("question", "")
+        existing_vec = q_item.get("embedding")
 
-        # Compute 768-dim vector embedding
+        # Skip logic: If embedding already exists and force_reembed is False
+        if existing_vec and isinstance(existing_vec, list) and len(existing_vec) > 0 and not force_reembed:
+            skipped_count += 1
+            continue
+
+        # Compute embedding for missing item
         vec = embedding_service.embed_query(q_text)
         q_item["embedding"] = vec
-        processed_count += 1
+        updated_count += 1
 
-    # Save updated vector database
-    with open(db_filepath, "w", encoding="utf-8") as f:
-        json.dump(questions, f, ensure_ascii=False, indent=2)
+    if updated_count > 0:
+        with open(db_filepath, "w", encoding="utf-8") as f:
+            json.dump(questions, f, ensure_ascii=False, indent=2)
 
-    print(f"Successfully pre-embedded {processed_count} items (Range: {start_idx + 1} ~ {actual_end}).")
+    print(f"Incremental Pre-embedding Summary: Examined {actual_end - start_idx}, Skipped {skipped_count}, Newly Computed {updated_count}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Batch Pre-embedding Script for UniMock AI")
-    parser.add_argument("--start", type=int, default=0, help="Start index (0-based)")
-    parser.add_argument("--end", type=int, default=1000, help="End index (exclusive)")
+    parser = argparse.ArgumentParser(description="Incremental Vector Pre-embedding Script")
+    parser.add_argument("--start", type=int, default=0, help="Start index")
+    parser.add_argument("--end", type=int, default=None, help="End index")
+    parser.add_argument("--force", action="store_true", help="Force re-embed")
     args = parser.parse_args()
 
     db_path = os.path.join(os.path.dirname(__file__), "..", "app", "db", "interview_questions_db.json")
-    batch_preembed(db_path, args.start, args.end)
+    incremental_preembed(db_path, start_idx=args.start, end_idx=args.end, force_reembed=args.force)
 ```
 
-### C. 第一批 (1 ~ 1000 筆) 預處理執行指令
+### C. 分批與增量執行指令範例
 
-在 `unimock-ai/` 環境下執行：
+在 `unimock-ai/` 目錄下可以直接執行：
 
 ```bash
+# 增量執行（自動跳過已轉過之題目，僅計算未轉換者）：
+python scripts/incremental_preembed_questions.py
+
+# 指定分批範圍（如 1 ~ 1000 筆）：
 python scripts/batch_preembed_questions.py --start 0 --end 1000
 ```
 
