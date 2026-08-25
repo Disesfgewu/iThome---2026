@@ -1,9 +1,17 @@
 import os
+import sys
 import pytest
 import asyncio
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
+
+# Reconfigure stdout for Windows console UTF-8 support
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 from app.services.gemma_llm import GemmaLLMClient, gemma_client
 from app.services.prompt_manager import prompt_manager
@@ -63,7 +71,8 @@ def test_async_invoke_with_system_prompt_question_gen():
         )
         assert isinstance(response, str)
         assert len(response.strip()) > 0
-        print(f"\n[Async Question Gen Test Response]: {response}")
+        safe_response = response[:100].encode("ascii", "ignore").decode("ascii") or "Generated response OK"
+        print(f"\n[Async Question Gen Test Response]: {safe_response}")
         
     asyncio.run(_test())
 
