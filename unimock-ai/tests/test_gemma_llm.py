@@ -19,10 +19,9 @@ from app.services.security_guardrail import security_guardrail
 from app.config import settings
 
 def test_gemma_llm_client_initialization():
-    """Verify GemmaLLMClient instantiates with configured settings."""
-    assert gemma_client._llm_type == "gemma-chat-client"
-    assert gemma_client.model_name == settings.PRIMARY_LLM_MODEL
-    assert gemma_client.fallback_model_name == settings.FALLBACK_LLM_MODEL
+    """Verify GemmaLLMClient instantiates strictly with Gemma-4-31B-it settings."""
+    assert gemma_client._llm_type == "gemma-4-31b-client"
+    assert gemma_client.model_name == "models/gemma-4-31b-it"
 
 def test_async_system_prompt_loading_with_transcript_placeholders():
     """Verify system prompt markdown templates load asynchronously with full transcript and candidate profile placeholders."""
@@ -70,14 +69,14 @@ def test_async_invoke_with_system_prompt_and_transcript():
             target_school="國立台灣大學",
             target_major="資訊工程學系",
             interview_mode="頂大嚴謹模式",
-            candidate_profile="高中代表隊參加全國軟體競賽一等獎",
+            candidate_profile="高中代表隊參加全國軟體競賽一等獎，熟悉 Python、Data Structures",
             sample_questions="範例問題：請向非資訊背景者解釋 Stack 與 Queue？",
             transcript="[系統]: 歡迎參加面試。"
         )
         assert isinstance(response, str)
         assert len(response.strip()) > 0
         safe_response = response[:100].encode("ascii", "ignore").decode("ascii") or "Generated response OK"
-        print(f"\n[Async Question Gen Test Response]: {safe_response}")
+        print(f"\n[Async Gemma-4-31B Test Response]: {safe_response}")
         
     asyncio.run(_test())
 

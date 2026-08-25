@@ -1,8 +1,8 @@
-# 【Day 8】知識檢索：User 資料 Embedding 向量化、RAG 相似度比對與 LLM 出題引擎
+# 【Day 8】知識檢索：User 資料 Embedding 向量化、RAG 相似度比對與 Gemma-4-31B 出題引擎
 
 在建立了 Day 7 的 Gemma-4-31B Chat Client、非同步 System Prompt 管理器與資安 Guardrail 之後，今天我們完成第二階段的關鍵樞紐——**User 資料向量化 (User Profile Embedding)、RAG 相似度比對與動態題目生成引擎 (RAGRetrieverService)**。
 
-系統透過將學生的「個人經歷、競賽專案與目標學系」進行 **Gemini Embedding 2 3,072 維度向量化**，下探至擁有 2,045 筆 pre-embedded 向量資料庫進行餘弦相似度 (Cosine Similarity) 檢索，抽取出最適切的「範例題目種子 (Sample Questions Seed Context)」，交由 Gemma 4 模型實時動態合成全新且專屬的面試考題。
+本系統的文本生成 LLM **嚴格且唯一採用專屬開源旗艦模型 `models/gemma-4-31b-it`**。系統透過將學生的「個人經歷、競賽專案與目標學系」進行 **Gemini Embedding 2 3,072 維度向量化**，下探至擁有 2,045 筆 pre-embedded 向量資料庫進行餘弦相似度 (Cosine Similarity) 檢索，抽取出最適切的「範例題目種子 (Sample Questions Seed Context)」，交由 Gemma-4-31B-it 模型實時動態合成全新且專屬的面試考題。
 
 ---
 
@@ -14,7 +14,7 @@ graph TD
     B --> C["QuestionRepository.search_similar_questions_by_vector"]
     C -->|混合檢索: 向量相似度 + 學系過濾| D["Top-K 範例題目種子 (Sample Questions Context)"]
     D --> E["AsyncPromptManager (系統提示詞動態注入)"]
-    E --> F["GemmaLLMClient (Gemma-4-31B / Gemini 2.5)"]
+    E --> F["GemmaLLMClient (models/gemma-4-31b-it)"]
     F --> G["動態產出切中正確面向與學生歷程之專屬面試考題"]
 ```
 
@@ -36,7 +36,7 @@ class RAGRetrieverService:
     1. Candidate Profile Vectorization: Embeds Candidate Profile (Resume/Project/Major) via Gemini Embedding 2 (3072 dims).
     2. RAG Hybrid Similarity Search: Queries pre-embedded DB vectors with candidate vector + department filtering.
     3. RAG Seed Formatting: Formats top-K questions, STAR reference answers, and rubrics for LLM injection.
-    4. End-to-End LLM Question Generation: Integrates with GemmaLLMClient for tailored question generation.
+    4. End-to-End LLM Question Generation: Integrates strictly with GemmaLLMClient (gemma-4-31b-it).
     """
     def __init__(self):
         self.embedding = embedding_service
@@ -92,7 +92,7 @@ class RAGRetrieverService:
         interview_mode: str = "標準面試",
         transcript: str = "[系統]: 面試開始。"
     ) -> Dict[str, Any]:
-        """End-to-End RAG Question Generation pipeline."""
+        """End-to-End RAG Question Generation pipeline via Gemma-4-31B-it."""
         sample_qs = await self.retrieve_sample_questions_for_candidate(
             candidate_profile=candidate_profile,
             target_major=target_major,
@@ -176,7 +176,7 @@ tests/test_rag_service.py::test_rag_similarity_search_retrieval PASSED          
 tests/test_rag_service.py::test_rag_seed_context_formatting PASSED                 [ 75%]
 tests/test_rag_service.py::test_end_to_end_rag_question_generation PASSED          [100%]
 
-============================== 4 passed in 18.22s ==============================
+============================== 4 passed in 48.30s ==============================
 ```
 
 證實：
@@ -188,6 +188,6 @@ tests/test_rag_service.py::test_end_to_end_rag_question_generation PASSED       
 
 ## 結語與明天預告
 
-今天我們完成了完整的 RAG 檢索器與 User 資料向量化比對服務，讓 AI 面試官具備根據學生個人經歷精準出題的能力。
+今天我們完成了全數基於 **`models/gemma-4-31b-it`** 的 RAG 檢索器與 User 資料向量化比對服務。
 
 明天 **【Day 9】**，我們將進入第三階段——**建立統一的 FastAPI 後端 API 服務 (Routers/Endpoints)**，將前端 UI、RAG 檢索器與 Gemma LLM 引擎全數串接！
