@@ -120,6 +120,23 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
     }
   };
 
+  const handleEarlyFinish = async () => {
+    const confirmFinish = window.confirm("確定要提早結束本次實戰面試，並立即進入「戰略評測診斷報告」嗎？\n系統將為您當前的對答紀錄進行綜合評分！");
+    if (!confirmFinish) return;
+
+    setIsSubmitting(true);
+    try {
+      const reportRes = await getReportApi(sessionData.sessionId);
+      setSessionData((prev) => ({
+        ...prev,
+        evaluationReport: reportRes
+      }));
+    } catch (err) {
+      console.warn("Report generation error:", err);
+    }
+    onFinishInterview();
+  };
+
   const formatTimer = (secs) => {
     const m = String(Math.floor(secs / 60)).padStart(2, '0');
     const s = String(secs % 60).padStart(2, '0');
@@ -142,14 +159,23 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
           </span>
         </div>
 
-        <div class="flex items-center gap-4">
-          <span class="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
             {currentQ.phase} ({currentIdx + 1} / {sessionData.questions.length})
           </span>
-          <div class="flex items-center gap-2 font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-md text-sm">
+          <div class="flex items-center gap-1.5 font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg text-sm">
             <span class="material-symbols-outlined text-base">timer</span>
             {formatTimer(timerSeconds)}
           </div>
+          <button
+            onClick={handleEarlyFinish}
+            disabled={isSubmitting}
+            class="px-3.5 py-1.5 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            title="提早結束面試並立即進入戰略評分報告"
+          >
+            <span class="material-symbols-outlined text-base text-rose-600">stop_circle</span>
+            直接結束 (產出報告)
+          </button>
         </div>
       </div>
 
