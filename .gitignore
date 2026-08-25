@@ -5,6 +5,13 @@ __pycache__/
 .pytest_cache/
 .env
 *.csv
+*.pdf
+
+# Large Embedded Vector JSON Databases (>100MB)
+unimock-ai/app/db/*.json
+
+# PII Privacy Protection (Ignore test PDF files & test_files directory)
+test_files/
 
 # Node / Frontend
 node_modules/
