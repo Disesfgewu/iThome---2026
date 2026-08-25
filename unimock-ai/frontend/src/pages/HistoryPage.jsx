@@ -11,8 +11,10 @@ export default function HistoryPage({ onViewReport }) {
 
   const filteredSessions = sessions.filter(
     (s) =>
-      s.targetMajor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.roleCategory.toLowerCase().includes(searchTerm.toLowerCase())
+      (s.targetSchool || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.targetGroup || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.targetMajor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.roleCategory || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -34,7 +36,7 @@ export default function HistoryPage({ onViewReport }) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜尋學系或關鍵字..."
+              placeholder="搜尋學校、學群或學系..."
               class="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -48,7 +50,7 @@ export default function HistoryPage({ onViewReport }) {
             <thead>
               <tr class="border-b border-slate-200 bg-slate-50 text-xs font-mono text-slate-500 uppercase tracking-wider">
                 <th class="py-3.5 px-6">Date / Time</th>
-                <th class="py-3.5 px-6">Target Major / Role</th>
+                <th class="py-3.5 px-6">Target School & Major</th>
                 <th class="py-3.5 px-6">Session Duration</th>
                 <th class="py-3.5 px-6">Score</th>
                 <th class="py-3.5 px-6">Status</th>
@@ -62,8 +64,10 @@ export default function HistoryPage({ onViewReport }) {
                     <div class="font-mono font-bold text-slate-900">{item.date}</div>
                   </td>
                   <td class="py-4 px-6">
-                    <div class="font-bold text-slate-900">{item.targetMajor}</div>
-                    <div class="text-xs text-slate-500 mt-0.5">{item.roleCategory}</div>
+                    <div class="font-bold text-slate-900">
+                      {item.targetSchool} · {item.targetMajor}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-0.5">{item.targetGroup} ({item.roleCategory})</div>
                   </td>
                   <td class="py-4 px-6 font-mono text-slate-600">{item.duration}</td>
                   <td class="py-4 px-6">

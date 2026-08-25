@@ -10,7 +10,9 @@ export default function ReportPage({ sessionData, onReset }) {
   const handleDownloadMarkdown = () => {
     const content = `# UniMock AI 模擬面試診斷報告
 
-- **目標申請學系：** ${sessionData.targetMajor}
+- **目標學校：** ${sessionData.targetSchool}
+- **目標學群：** ${sessionData.targetGroup}
+- **目標學系：** ${sessionData.targetMajor}
 - **評分結果：** 84 / 100 (A- 具備良好基礎)
   - STAR 邏輯條理性: ${scores.logic_structure} / 10
   - 科系專業契合度: ${scores.major_relevance} / 10
@@ -31,7 +33,7 @@ ${report.improvements.map((i) => `- ${i}`).join('\n')}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `UniMock_Report_${sessionData.targetMajor}.md`;
+    link.download = `UniMock_Report_${sessionData.targetSchool}_${sessionData.targetMajor}.md`;
     link.click();
   };
 
@@ -82,8 +84,8 @@ ${report.improvements.map((i) => `- ${i}`).join('\n')}
           </p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-slate-100 pt-4 text-xs font-mono">
             <div>
-              <p class="text-slate-400 mb-1">目標學系</p>
-              <p class="font-bold text-slate-800">{sessionData.targetMajor}</p>
+              <p class="text-slate-400 mb-1">目標志願</p>
+              <p class="font-bold text-slate-800">{sessionData.targetSchool} {sessionData.targetMajor}</p>
             </div>
             <div>
               <p class="text-slate-400 mb-1">總題數</p>

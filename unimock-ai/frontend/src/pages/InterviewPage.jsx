@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WaveformBar from '../components/WaveformBar';
-import { respondInterviewApi } from '../api/mockApi';
+import { respondInterviewApi, checkSchoolTier } from '../api/mockApi';
 
 export default function InterviewPage({ sessionData, setSessionData, onFinishInterview }) {
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -12,13 +12,14 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentQ = sessionData.questions[currentIdx] || sessionData.questions[0];
+  const tierInfo = checkSchoolTier(sessionData.targetSchool);
 
   // Timer countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-    return () => clearInterval(timer);
+    return () => clearInterval(interval);
   }, []);
 
   // Streaming typewriter effect for question
@@ -85,16 +86,27 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   return (
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 h-[calc(100vh-4rem)] flex flex-col gap-6">
       {/* Top Bar */}
-      <div class="flex justify-between items-center bg-white border border-slate-200 rounded-xl px-6 py-3 shadow-xs">
+      <div class="flex flex-wrap justify-between items-center bg-white border border-slate-200 rounded-xl px-6 py-3 shadow-xs gap-3">
         <div class="flex items-center gap-3">
           <span class="material-symbols-outlined text-indigo-600">radio_button_checked</span>
-          <span class="font-mono text-xs font-bold text-slate-600 uppercase tracking-widest">
-            當前階段：{currentQ.phase} ({currentIdx + 1} / {sessionData.questions.length})
+          <span class="font-mono text-xs font-bold text-slate-800">
+            {sessionData.targetSchool} · {sessionData.targetGroup} · {sessionData.targetMajor}
+          </span>
+          <span class={`text-xs px-2.5 py-0.5 rounded-full font-bold font-mono ${
+            tierInfo.isTopTier ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {tierInfo.tierLabel}
           </span>
         </div>
-        <div class="flex items-center gap-2 font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-md text-sm">
-          <span class="material-symbols-outlined text-base">timer</span>
-          {formatTimer(timerSeconds)}
+
+        <div class="flex items-center gap-4">
+          <span class="font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">
+            {currentQ.phase} ({currentIdx + 1} / {sessionData.questions.length})
+          </span>
+          <div class="flex items-center gap-2 font-mono font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-md text-sm">
+            <span class="material-symbols-outlined text-base">timer</span>
+            {formatTimer(timerSeconds)}
+          </div>
         </div>
       </div>
 
@@ -121,9 +133,16 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
           {/* Core Question Card */}
           <div class="bg-white border-l-4 border-l-indigo-600 border border-slate-200 rounded-xl p-6 flex-1 flex flex-col justify-between shadow-xs">
             <div>
-              <div class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <span class="material-symbols-outlined text-indigo-600 text-sm">psychology</span>
-                核心發問
+              <div class="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-indigo-600 text-sm">psychology</span>
+                  核心發問 (Question)
+                </span>
+                {tierInfo.isTopTier && (
+                  <span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-bold font-mono">
+                    高難度專業技術 / 申論題 Mode
+                  </span>
+                )}
               </div>
               <p class="text-lg font-bold text-slate-900 leading-relaxed min-h-[100px]">
                 {displayedQuestion}

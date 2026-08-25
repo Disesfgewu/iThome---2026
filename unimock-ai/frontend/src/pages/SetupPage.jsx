@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { uploadResumeApi } from '../api/mockApi';
+import { uploadResumeApi, mockDepartmentGroups, checkSchoolTier } from '../api/mockApi';
 
 export default function SetupPage({ sessionData, setSessionData, onStartInterview }) {
+  const [targetSchool, setTargetSchool] = useState(sessionData.targetSchool || '國立臺灣大學');
+  const [targetGroup, setTargetGroup] = useState(sessionData.targetGroup || '資訊電機學群');
   const [targetMajor, setTargetMajor] = useState(sessionData.targetMajor || '資訊工程學系');
   const [persona, setPersona] = useState(sessionData.interviewerPersona || 'strict');
   const [qCount, setQCount] = useState(sessionData.questionCount || 3);
   const [isScanning, setIsScanning] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('陳小明_資工自傳與專案.pdf');
 
+  const tierInfo = checkSchoolTier(targetSchool);
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     setIsScanning(true);
-    const profile = await uploadResumeApi(file, targetMajor);
+    const profile = await uploadResumeApi(file, targetSchool, targetGroup, targetMajor);
     setUploadedFileName(profile.fileName);
     setSessionData((prev) => ({
       ...prev,
@@ -23,6 +27,8 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
   const handleStart = () => {
     setSessionData((prev) => ({
       ...prev,
+      targetSchool,
+      targetGroup,
       targetMajor,
       interviewerPersona: persona,
       questionCount: qCount
@@ -33,31 +39,93 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
   return (
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div class="mb-8">
-        <h2 class="text-3xl font-bold text-slate-900 tracking-tight mb-2">面試參數設定</h2>
+        <h2 class="text-3xl font-bold text-slate-900 tracking-tight mb-2">面試參數與志願設定</h2>
         <p class="text-slate-600 text-base max-w-3xl">
-          系統將根據您設定的學系與面試官性格，結合您的個人履歷與備審檔案，動態生成高擬真學術面試題庫。
+          請設定您的目標學校、學群與學系。系統將根據學校難度階層動態調整 AI 面試官的出題深度與申論題型。
         </p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left 60%: Configuration Options */}
         <div class="lg:col-span-7 flex flex-col gap-6">
-          {/* Target Major Dropdown */}
-          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-            <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span class="material-symbols-outlined text-indigo-600 text-lg">school</span>
-              目標申請學系
-            </label>
-            <select
-              value={targetMajor}
-              onChange={(e) => setTargetMajor(e.target.value)}
-              class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium cursor-pointer"
-            >
-              <option value="資訊工程學系">資訊工程學系 (Computer Science)</option>
-              <option value="醫學系">醫學系 (Medicine)</option>
-              <option value="電機工程學系">電機工程學系 (Electrical Engineering)</option>
-              <option value="企業管理學系">企業管理學系 (Business Administration)</option>
-            </select>
+          {/* School, Department Group & Major Grid */}
+          <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-5">
+            {/* Target School Text Input */}
+            <div>
+              <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-indigo-600 text-lg">domain</span>
+                  目標學校 (文字輸入)
+                </span>
+                <span class={`text-xs px-2.5 py-0.5 rounded-full font-bold font-mono ${
+                  tierInfo.isTopTier ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {tierInfo.tierLabel}
+                </span>
+              </label>
+              <input
+                type="text"
+                value={targetSchool}
+                onChange={(e) => setTargetSchool(e.target.value)}
+                placeholder="請輸入目標學校，例如：國立臺灣大學、國立成功大學..."
+                class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold"
+              />
+              {/* Dynamic Difficulty Hint Banner */}
+              <div class={`mt-2.5 p-3 rounded-lg text-xs leading-relaxed font-medium transition-all ${
+                tierInfo.isTopTier
+                  ? 'bg-amber-50 border border-amber-200 text-amber-900'
+                  : 'bg-slate-50 border border-slate-200 text-slate-600'
+              }`}>
+                {tierInfo.difficultyDesc}
+              </div>
+            </div>
+
+            {/* Department Group Dropdown */}
+            <div>
+              <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-indigo-600 text-lg">category</span>
+                目標學群 (下拉選擇)
+              </label>
+              <select
+                value={targetGroup}
+                onChange={(e) => setTargetGroup(e.target.value)}
+                class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium cursor-pointer"
+              >
+                {mockDepartmentGroups.map((group) => (
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Target Major Text Input */}
+            <div>
+              <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-indigo-600 text-lg">school</span>
+                目標學系 (文字輸入)
+              </label>
+              <input
+                type="text"
+                value={targetMajor}
+                onChange={(e) => setTargetMajor(e.target.value)}
+                placeholder="請輸入目標學系，例如：資訊工程學系、智慧醫療與健康資料學程..."
+                class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold"
+              />
+              <div class="flex gap-2 mt-2">
+                <span class="text-xs text-slate-400 font-mono">熱門快速填入：</span>
+                {['資訊工程學系', '電機工程學系', '人工智慧學系', '企業管理學系'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setTargetMajor(m)}
+                    class="text-xs text-indigo-600 hover:underline font-medium"
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* AI Persona Radio Cards */}
@@ -172,6 +240,10 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
             </div>
 
             <div class="p-5 flex flex-col gap-4 text-sm">
+              <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs font-mono">
+                <p class="text-slate-500">志願：<strong class="text-indigo-900">{targetSchool} · {targetGroup} · {targetMajor}</strong></p>
+              </div>
+
               {/* Highlights */}
               <div>
                 <h4 class="text-xs font-mono font-bold text-emerald-700 flex items-center gap-1 mb-2">
