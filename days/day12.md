@@ -108,10 +108,10 @@ UniMock AI - Day 12 Interview State Machine Live Test
 --- [Step 2] Live FastAPI Session State Machine Dialogue Flow ---
 Session Created: sess_e8f21a49c2 | Stage: INTRO
 Q1 (INTRO 階段首題)：
-[考官]：你好，歡迎參加國立成功大學資訊工程學系的面試。我看過你的簡歷，你在高中曾參與大專生研究計畫... 請簡單介紹你自己，並分享是什麼契機讓你想申請成大資工？
+[考官]：你好，歡迎參加面試。我看過你的簡歷，你在程式開發與競賽上有不錯的表現... 請簡單介紹你自己，並分享是什麼契機讓你想申請本系？
 
 Q2 (PORTFOLIO_DEEP_DIVE 專案深挖階段追問)：
-[考官]：你提到在研究計畫中進行「無梯度通道剪枝」。請詳細說明你在評估通道重要性時，為什麼選擇無梯度方法？在邊緣裝置上這帶來了什麼實質的運算優勢？
+[考官]：你提到在專案中進行「資料結構優化與演算法效能改善」。請詳細說明你在評估系統瓶頸時，為什麼選擇該架構？在實際執行上帶來了什麼實質的運算優勢？
 
 ==================================================
 Day 12 State Machine Live Test Completed Successfully!
