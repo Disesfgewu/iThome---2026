@@ -24,17 +24,19 @@ def test_gemma_llm_client_initialization():
     assert gemma_client.model_name == settings.PRIMARY_LLM_MODEL
     assert gemma_client.fallback_model_name == settings.FALLBACK_LLM_MODEL
 
-def test_async_system_prompt_loading():
-    """Verify system prompt markdown templates load asynchronously from docs/system_prompts/."""
+def test_async_system_prompt_loading_with_transcript_placeholders():
+    """Verify system prompt markdown templates load asynchronously with full transcript and candidate profile placeholders."""
     async def _test():
         sys_prompt = await prompt_manager.get_system_prompt(
-            "question_generation",
-            target_school="國立台灣大學",
+            "overall_analysis",
+            candidate_profile="高中數理資優班，具備 Python 與機器學習專案經驗",
             target_major="資訊工程學系",
-            interview_mode="頂大嚴謹模式"
+            transcript="[Q1]: 請自我介紹。[A1]: 教授好，我叫小明...",
+            aggregated_scores="邏輯結構: 5星, 專業契合: 4星"
         )
-        assert "國立台灣大學" in sys_prompt
+        assert "高中數理資優班" in sys_prompt
         assert "資訊工程學系" in sys_prompt
+        assert "[Q1]: 請自我介紹" in sys_prompt
     
     asyncio.run(_test())
 
@@ -59,15 +61,18 @@ def test_security_guardrail_academic_cybersecurity_passing():
     is_safe_2, reason_2 = security_guardrail.verify_input_safety(academic_input_2)
     assert is_safe_2 is True
 
-def test_async_invoke_with_system_prompt_question_gen():
-    """Test async execution with empty user input (initial question generation)."""
+def test_async_invoke_with_system_prompt_and_transcript():
+    """Test async execution with system prompt, transcript context, and empty user input."""
     async def _test():
         response = await gemma_client.invoke_with_system_prompt(
             prompt_name="question_generation",
             user_input="",  # Empty user input by default
             target_school="國立台灣大學",
             target_major="資訊工程學系",
-            interview_mode="頂大嚴謹模式"
+            interview_mode="頂大嚴謹模式",
+            candidate_profile="高中代表隊參加全國軟體競賽一等獎",
+            sample_questions="範例問題：請向非資訊背景者解釋 Stack 與 Queue？",
+            transcript="[系統]: 歡迎參加面試。"
         )
         assert isinstance(response, str)
         assert len(response.strip()) > 0

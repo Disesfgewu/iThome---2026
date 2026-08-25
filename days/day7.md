@@ -2,25 +2,26 @@
 
 在完成了 Day 6 的題庫去識別化清洗與 Gemini Embedding 2 向量化整合後，今天我們進入核心 AI 大腦的搭建——**LangChain 生態系整合、非同步 System Prompt 管理器、資安與隱私防護 Guardrail，以及 Gemma-4-31B 統一 Chat Client 客戶端封裝**。
 
-根據生產級與商業安全規範，我們實現了三大關鍵架構：
+根據生產級與商業安全規範，我們實現了四大關鍵架構：
 1. **System Prompt 檔分離與非同步動態載入 (`docs/system_prompts/`)**：System Prompt 絕不硬編碼在 Python 程式碼中，而是拆分為模組化 Markdown 檔，於 Runtime 透過 `AsyncPromptManager` 進行非同步動態載入。
-2. **資安與隱私攻擊防護 Guardrail (`SecurityGuardrail`)**：嚴格過濾 Prompt Injection 與系統提示詞竊取攻擊；**同時精準識別並放行合法的「資訊安全」專業學術問答**（如 SQL Injection 防禦原理、TLS 握手等）。
-3. **User Prompt 預設為空與狀態觸發機制**：User Prompt 預設為空，僅在學生實際輸入回答或觸發對話時帶入。
+2. **問答逐字稿與對話歷史 (`transcript`) 注入機制**：在系統提示詞模組中，預留 `{transcript}`、`{candidate_profile}`、`{sample_questions}`、`{user_answer}` 等變數占位符，由後端在 Runtime 將對話紀錄與上下文彈性填入。
+3. **資安與隱私攻擊防護 Guardrail (`SecurityGuardrail`)**：嚴格過濾 Prompt Injection 與系統提示詞竊取攻擊；**同時精準識別並放行合法的「資訊安全」專業學術問答**（如 SQL Injection 防禦原理、TLS 握手等）。
+4. **User Prompt 預設為空與狀態觸發機制**：User Prompt 預設為空，僅在學生實際輸入回答或觸發對話時帶入。
 
 ---
 
-## 1. 模組化 System Prompt 檔案結構設計 (`docs/system_prompts/`)
+## 1. 模組化 System Prompt 檔案結構與對話歷史注入設計 (`docs/system_prompts/`)
 
-針對系統的各項核心功能，我們在 `docs/system_prompts/` 建立專屬的系統提示詞 Markdown 檔案：
+針對系統的各項核心功能，我們在 `docs/system_prompts/` 建立專屬的系統提示詞 Markdown 檔案，並在內部預留問答紀錄 (`transcript`) 注入欄位：
 
-| Prompt 檔案名稱 | 功能模組與用途說明 |
-| :--- | :--- |
-| `question_generation.md` | **動態出題考官**：結合 RAG 檢索脈絡與學生經歷，生成對應正確面向的面試考題。 |
-| `response_generation.md` | **回應與追問**：評估學生回答是否符合 STAR 原則，並進行技術/經歷追問 (Follow-up)。 |
-| `scoring_evaluation.md` | **評分與星級分析**：依據四維度 Rubric 評分規準給予星級與評語。 |
-| `data_aggregation.md` | **資料統整**：面試對話逐字稿與 RAG 脈絡之結構化摘要。 |
-| `overall_analysis.md` | **綜合分析與優劣勢評估**：學生整體表現與後端備戰建議報告。 |
-| `application_multimodal_analysis.md` | **備審資料多模態分析**：解析 PDF/競賽證明與學習歷程亮點。 |
+| Prompt 檔案名稱 | 注入變數與脈絡 (Injected Variables) | 功能模組與用途說明 |
+| :--- | :--- | :--- |
+| `question_generation.md` | `{target_school}`, `{target_major}`, `{candidate_profile}`, `{sample_questions}`, `{transcript}` | **動態出題考官**：結合 RAG 檢索脈絡、學生經歷與過往問答歷史，動態生成新問題。 |
+| `response_generation.md` | `{target_major}`, `{candidate_profile}`, `{transcript}`, `{user_answer}` | **回應與追問**：評估學生最新回答是否符合 STAR 原則，並進行技術/經歷追問。 |
+| `scoring_evaluation.md` | `{target_major}`, `{transcript}` | **評分與星級分析**：傳入整場面試逐字稿，依四維度 Rubric 評分規準給予星級與評語。 |
+| `data_aggregation.md` | `{candidate_profile}`, `{transcript}` | **資料統整**：將面試對話逐字稿與 RAG 脈絡進行結構化摘要。 |
+| `overall_analysis.md` | `{candidate_profile}`, `{target_major}`, `{transcript}`, `{aggregated_scores}` | **綜合分析與優劣勢評估**：綜合評估整場表現，產出戰略備戰報告。 |
+| `application_multimodal_analysis.md` | `{target_major}`, `{document_content}` | **備審資料多模態分析**：解析 PDF/競賽證明與學習歷程亮點。 |
 
 ### 非同步 Prompt 管理器實作 (`app/services/prompt_manager.py`)
 
@@ -180,24 +181,25 @@ gemma_client = GemmaLLMClient()
 執行 `pytest tests/test_gemma_llm.py -v` 驗證成果：
 
 ```text
-tests/test_gemma_llm.py::test_gemma_llm_client_initialization PASSED                   [ 20%]
-tests/test_gemma_llm.py::test_async_system_prompt_loading PASSED                        [ 40%]
-tests/test_gemma_llm.py::test_security_guardrail_prompt_injection_blocking PASSED     [ 60%]
-tests/test_gemma_llm.py::test_security_guardrail_academic_cybersecurity_passing PASSED [ 80%]
-tests/test_gemma_llm.py::test_async_invoke_with_system_prompt_question_gen PASSED      [100%]
+tests/test_gemma_llm.py::test_gemma_llm_client_initialization PASSED                               [ 20%]
+tests/test_gemma_llm.py::test_async_system_prompt_loading_with_transcript_placeholders PASSED      [ 40%]
+tests/test_gemma_llm.py::test_security_guardrail_prompt_injection_blocking PASSED                 [ 60%]
+tests/test_gemma_llm.py::test_security_guardrail_academic_cybersecurity_passing PASSED             [ 80%]
+tests/test_gemma_llm.py::test_async_invoke_with_system_prompt_and_transcript PASSED                [100%]
 
-============================== 5 passed in 14.88s ==============================
+============================== 5 passed in 22.55s ==============================
 ```
 
 證實：
-1. **Prompt 攻擊被 100% 成功攔截**（`test_security_guardrail_prompt_injection_blocking`）。
-2. **資安學術題目 100% 成功放行**（`test_security_guardrail_academic_cybersecurity_passing`）。
-3. **系統提示詞檔經由 `AsyncPromptManager` 非同步成功載入**。
+1. **所有對話逐字稿 (`transcript`) 與學生經歷均能精確注入至 System Prompt 中**。
+2. **Prompt 攻擊被 100% 成功攔截**（`test_security_guardrail_prompt_injection_blocking`）。
+3. **資安學術題目 100% 成功放行**（`test_security_guardrail_academic_cybersecurity_passing`）。
+4. **系統提示詞檔經由 `AsyncPromptManager` 非同步成功載入**。
 
 ---
 
 ## 結語與明天預告
 
-今天我們完成了架構完整且具備商業級防護的 Gemma 4 Chat Client 客戶端，整合了非同步 System Prompt 載入器、資安與隱私過濾器以及雙模型備援（Fallback）機制。
+今天我們完成了架構完整且具備商業級防護與逐字稿動態注入的 Gemma 4 Chat Client 客戶端，整合了非同步 System Prompt 載入器、資安與隱私過濾器以及雙模型備援（Fallback）機制。
 
 明天 **【Day 8】**，我們將正式對接 RAG 檢索器與向量資料庫，讓 Gemma 能在發問時即時檢索「範例題目」與學生的「簡歷歷程」並進行題目動態生成！
