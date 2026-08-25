@@ -45,8 +45,7 @@ def embed_with_retry(text: str, max_retries: int = 10):
 def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False, batch_save_interval: int = 50, pacing_delay: float = 0.65):
     """
     Strict Pre-embedding Engine for UniMock AI with 100 RPM Pacing & Retry.
-    - Pacing delay of 0.65s guarantees ~90 requests/minute to stay under 100 RPM limit.
-    - Auto-pauses 35s if 429 Quota Exceeded occurs and resumes without crashing.
+    Prints EVERY single line (item-by-item) in exact sequential order.
     """
     if not os.path.exists(db_filepath):
         print(f"Error: Database file {db_filepath} not found!")
@@ -80,8 +79,7 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
         # Skip logic: If embedding already exists and is 3072-dim
         if existing_vec and isinstance(existing_vec, list) and len(existing_vec) == 3072 and not force_reembed:
             skipped_count += 1
-            if skipped_count <= 3 or skipped_count % 200 == 0:
-                print(f"[SKIP {q_id}] Already embedded (3072 dims).")
+            print(f"[SKIP {q_id}] Already embedded (3072 dims). Index {i+1}/{actual_end}")
             continue
 
         try:
@@ -91,13 +89,11 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
             processed_count += 1
             updated_count += 1
 
-            if processed_count % 5 == 0 or i == actual_end - 1:
-                # Format snippet safely for terminal
-                snippet = q_text[:15].replace("\n", " ").replace("\r", "")
-                try:
-                    print(f"[EMBED {q_id}] Progress: [{i + 1}/{actual_end}] Computed 3072-dim vector for '{snippet}...'")
-                except UnicodeEncodeError:
-                    print(f"[EMBED {q_id}] Progress: [{i + 1}/{actual_end}] Computed 3072-dim vector.")
+            snippet = q_text[:15].replace("\n", " ").replace("\r", "")
+            try:
+                print(f"[EMBED {q_id}] Progress [{i + 1}/{actual_end}] Computed 3072-dim vector for '{snippet}...'")
+            except UnicodeEncodeError:
+                print(f"[EMBED {q_id}] Progress [{i + 1}/{actual_end}] Computed 3072-dim vector.")
 
             # Periodically save updated database every batch_save_interval items
             if updated_count % batch_save_interval == 0:
