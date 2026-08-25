@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -16,30 +17,37 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.services.embedding_service import embedding_service
 
-def embed_with_retry(text: str, max_retries: int = 5, delay: float = 2.0):
-    """Embeds text with exponential backoff on rate limit or network errors."""
+def embed_with_retry(text: str, max_retries: int = 10):
+    """
+    Embeds text with automatic handling for Google AI Studio 100 RPM Rate Limit.
+    If 429 Quota Exceeded occurs, parses retry_delay (e.g. 32s) or sleeps 35s before retrying.
+    """
     for attempt in range(1, max_retries + 1):
         try:
             return embedding_service.embed_query(text)
         except Exception as e:
             err_msg = str(e)
-            if "429" in err_msg or "Resource" in err_msg or "Quota" in err_msg or "Rate" in err_msg:
-                wait_time = delay * (2 ** (attempt - 1))
-                print(f"\n[Rate Limit 429] Reached API quota/rate limit. Waiting {wait_time:.1f}s before retry (Attempt {attempt}/{max_retries})...")
-                time.sleep(wait_time)
+            if "429" in err_msg or "Quota" in err_msg or "Resource" in err_msg:
+                # Try to extract retry_delay from Google API error message
+                match = re.search(r"retry in ([0-9\.]+)s", err_msg, re.IGNORECASE)
+                if match:
+                    wait_sec = float(match.group(1)) + 2.0
+                else:
+                    wait_sec = 35.0
+
+                print(f"\n[429 RPM Limit] Hit 100 RPM Free Tier limit. Pausing {wait_sec:.1f}s for quota reset (Retry attempt {attempt}/{max_retries})...")
+                time.sleep(wait_sec)
             elif attempt < max_retries:
-                wait_time = delay
-                print(f"\n[API Network Warning] {err_msg[:60]}. Retrying in {wait_time}s (Attempt {attempt}/{max_retries})...")
-                time.sleep(wait_time)
+                print(f"\n[Network Retry] {err_msg[:60]}. Retrying in 5s (Attempt {attempt}/{max_retries})...")
+                time.sleep(5.0)
             else:
                 raise e
 
-def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False, batch_save_interval: int = 50, pacing_delay: float = 0.1):
+def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = None, force_reembed: bool = False, batch_save_interval: int = 50, pacing_delay: float = 0.65):
     """
-    Strict Pre-embedding Engine for UniMock AI with Rate-Limit Backoff.
-    - Strictly uses models/gemini-embedding-2 (3072-dim vectors).
-    - Automatically handles Rate Limit (429) errors with exponential backoff retries.
-    - Saves checkpoints to disk every 50 items.
+    Strict Pre-embedding Engine for UniMock AI with 100 RPM Pacing & Retry.
+    - Pacing delay of 0.65s guarantees ~90 requests/minute to stay under 100 RPM limit.
+    - Auto-pauses 35s if 429 Quota Exceeded occurs and resumes without crashing.
     """
     if not os.path.exists(db_filepath):
         print(f"Error: Database file {db_filepath} not found!")
@@ -52,8 +60,9 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
     actual_end = total_count if end_idx is None or end_idx > total_count else end_idx
     
     print("==================================================")
-    print("UniMock AI - Strict Gemini Embedding 2 Engine (with Rate-Limit Backoff)")
+    print("UniMock AI - Strict Gemini Embedding 2 Engine")
     print(f"Target Model: models/gemini-embedding-2 (3072 dims)")
+    print(f"Pacing Delay: {pacing_delay}s/request (Max 90 RPM)")
     print(f"Database Path: {db_filepath}")
     print(f"Total Database Records: {total_count}")
     print(f"Processing Range: Index {start_idx} to {actual_end - 1} (Items {start_idx + 1} ~ {actual_end})")
@@ -77,7 +86,7 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
             continue
 
         try:
-            # Compute 3072-dimensional vector embedding with automatic retry
+            # Compute 3072-dimensional vector embedding with automatic 100 RPM retry
             vec = embed_with_retry(q_text)
             q_item["embedding"] = vec
             processed_count += 1
@@ -93,7 +102,7 @@ def incremental_preembed(db_filepath: str, start_idx: int = 0, end_idx: int = No
                     json.dump(questions, f, ensure_ascii=False, indent=2)
                 print(f"--> [Checkpoint Saved] Disk updated with {updated_count} newly embedded items.")
 
-            # Small pacing delay to avoid slamming API rate limit
+            # Pacing delay to stay cleanly under 100 RPM limit
             if pacing_delay > 0:
                 time.sleep(pacing_delay)
 
