@@ -1,6 +1,7 @@
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
+from app.models.candidate_model import CandidateProfile
 from app.services.embedding_service import embedding_service
 from app.repositories.question_repository import question_repository
 from app.services.gemma_llm import gemma_client
@@ -9,11 +10,12 @@ class RAGRetrieverService:
     """
     RAG (Retrieval-Augmented Generation) Service for UniMock AI.
     
-    Flow:
-    1. Candidate Profile Vectorization: Embeds Candidate Profile (Resume/Project/Major) via Gemini Embedding 2 (3072 dims).
+    1. Comprehensive Resume Profile Vectorization: Embeds Candidate Profile 
+       (Autobiography, Experiences, Grades, Coursework, Leadership, Projects, Research, Skills)
+       via Gemini Embedding 2 (3072 dims).
     2. RAG Hybrid Similarity Search: Queries pre-embedded DB vectors with candidate vector + department filtering.
     3. RAG Seed Formatting: Formats top-K questions, STAR reference answers, and rubrics for LLM injection.
-    4. End-to-End LLM Question Generation: Integrates with GemmaLLMClient for tailored question generation.
+    4. End-to-End LLM Question Generation: Integrates strictly with GemmaLLMClient (gemma-4-31b-it).
     """
     def __init__(self):
         self.embedding = embedding_service
@@ -21,31 +23,36 @@ class RAGRetrieverService:
 
     async def retrieve_sample_questions_for_candidate(
         self,
-        candidate_profile: str,
+        candidate_profile: Union[str, CandidateProfile],
         target_major: Optional[str] = None,
         target_school: Optional[str] = None,
         top_k: int = 3
     ) -> List[Dict[str, Any]]:
         """
-        Asynchronously vectorizes Candidate Profile and retrieves Top-K similar sample questions from DB.
+        Asynchronously vectorizes full Candidate Profile and retrieves Top-K similar sample questions from DB.
         """
-        query_text = f"目標學系: {target_major or ''}。個人經歷簡歷: {candidate_profile}"
+        if isinstance(candidate_profile, CandidateProfile):
+            profile_text = candidate_profile.to_structured_text()
+            major = target_major or candidate_profile.target_major
+        else:
+            profile_text = str(candidate_profile)
+            major = target_major
+
+        query_text = f"目標學系: {major or ''}。\n【全方位履歷歷程】\n{profile_text}"
         
-        # Run vector embedding calculation asynchronously in thread
+        # 1. 計算全方位履歷 Profile 之 3072 維度正規化向量
         query_vec = await asyncio.to_thread(self.embedding.embed_query, query_text)
         
-        # Perform instant vector similarity search against pre-embedded DB
+        # 2. 向 2045 筆題庫進行向量相似度與學系混合比對
         matched_questions = self.repository.search_similar_questions_by_vector(
             query_vec=query_vec,
-            department=target_major,
+            department=major,
             top_k=top_k
         )
         return matched_questions
 
     def format_rag_context_seeds(self, questions: List[Dict[str, Any]]) -> str:
-        """
-        Formats retrieved sample questions and rubrics into a clean seed context string for LLM injection.
-        """
+        """Formats retrieved sample questions and rubrics into a clean seed context string for LLM injection."""
         if not questions:
             return "（尚無比對到特定範例題目，請依據目標學系專業自由出題）"
 
@@ -67,37 +74,37 @@ class RAGRetrieverService:
 
     async def generate_rag_question_for_candidate(
         self,
-        candidate_profile: str,
-        target_school: str,
-        target_major: str,
+        candidate_profile: Union[str, CandidateProfile],
+        target_school: Optional[str] = None,
+        target_major: Optional[str] = None,
         interview_mode: str = "標準面試",
         transcript: str = "[系統]: 面試開始。"
     ) -> Dict[str, Any]:
-        """
-        End-to-End RAG Question Generation:
-        1. Embeds candidate profile & retrieves RAG seed context.
-        2. Injects formatted RAG context into `question_generation` System Prompt.
-        3. Calls GemmaLLMClient to generate custom interview question.
-        """
-        # Step 1: Vectorize profile & retrieve RAG sample questions
+        """End-to-End RAG Question Generation pipeline via Gemma-4-31B-it."""
+        if isinstance(candidate_profile, CandidateProfile):
+            profile_text = candidate_profile.to_structured_text()
+            school = target_school or candidate_profile.target_school
+            major = target_major or candidate_profile.target_major
+        else:
+            profile_text = str(candidate_profile)
+            school = target_school or ""
+            major = target_major or ""
+
         sample_qs = await self.retrieve_sample_questions_for_candidate(
             candidate_profile=candidate_profile,
-            target_major=target_major,
-            target_school=target_school,
+            target_major=major,
+            target_school=school,
             top_k=3
         )
-        
-        # Step 2: Format RAG seed context
         rag_seed_context = self.format_rag_context_seeds(sample_qs)
 
-        # Step 3: LLM generation via Gemma 4 Client
         generated_question = await gemma_client.invoke_with_system_prompt(
             prompt_name="question_generation",
-            user_input="",  # User prompt is empty by default
-            target_school=target_school,
-            target_major=target_major,
+            user_input="",
+            target_school=school,
+            target_major=major,
             interview_mode=interview_mode,
-            candidate_profile=candidate_profile,
+            candidate_profile=profile_text,
             sample_questions=rag_seed_context,
             transcript=transcript
         )
