@@ -125,6 +125,75 @@ export async function respondInterviewApi(sessionId, currentIdx, answer) {
   }
 }
 
+export async function respondInterviewStreamApi(sessionId, currentIdx, answer, onChunk) {
+  try {
+    const payload = {
+      session_id: sessionId,
+      user_answer: answer
+    };
+
+    const res = await fetch(`${API_BASE_URL}/interview/answer-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      throw new Error(`Respond stream failed with status: ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+    let fullText = '';
+    let isFinished = false;
+    let buffer = '';
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete trailing chunk
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.slice(6);
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.done) {
+                isFinished = parsed.is_finished;
+                if (parsed.full_text) {
+                  fullText = parsed.full_text;
+                }
+              } else if (parsed.text) {
+                fullText += parsed.text;
+                if (onChunk) {
+                  onChunk(parsed.text, fullText);
+                }
+              }
+            } catch (e) {
+              console.error('Error parsing SSE JSON:', e);
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      sessionId,
+      nextQuestion: isFinished ? null : fullText,
+      isFinished,
+      nextIndex: currentIdx + 1
+    };
+  } catch (err) {
+    console.warn('Real API respondInterviewStream error, falling back to standard API:', err);
+    return respondInterviewApi(sessionId, currentIdx, answer);
+  }
+}
+
 export async function getReportApi(sessionId) {
   try {
     const res = await fetch(`${API_BASE_URL}/reports/generate`, {

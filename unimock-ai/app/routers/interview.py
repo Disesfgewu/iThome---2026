@@ -1,4 +1,6 @@
+import json
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from app.models.api_schemas import (
     InterviewSetupRequest,
     InterviewSetupResponse,
@@ -131,4 +133,102 @@ async def submit_user_answer(req: AnswerSubmitRequest):
         turn_count=len(session["transcript_turns"]),
         current_stage=next_stage.value,
         is_finished=is_finished
+    )
+
+@router.post("/answer-stream")
+async def submit_user_answer_stream(req: AnswerSubmitRequest):
+    """
+    Submits user answer and returns real-time SSE (Server-Sent Events) token stream from Gemma-4-31B.
+    """
+    session = session_repository.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session '{req.session_id}' not found.")
+
+    if session.get("is_finished"):
+        async def finished_generator():
+            done_payload = json.dumps({
+                "done": True,
+                "full_text": "[系統]: 本場面試問答已圓滿結束。您可以點擊產出戰略評分報告。",
+                "turn_count": len(session["transcript_turns"]),
+                "current_stage": session["current_stage"],
+                "is_finished": True
+            }, ensure_ascii=False)
+            yield f"data: {done_payload}\n\n"
+        return StreamingResponse(finished_generator(), media_type="text/event-stream")
+
+    # 1. Security Guardrail Verification
+    is_safe, reason = security_guardrail.verify_input_safety(req.user_answer)
+    if not is_safe:
+        raise HTTPException(status_code=400, detail=f"Input blocked by Security Guardrail: {reason}")
+
+    # 2. Update transcript history & LangChain Memory with user answer
+    session_repository.add_answer_turn(req.session_id, req.user_answer)
+    memory_manager.add_user_message(req.session_id, req.user_answer)
+
+    # 3. Evaluate answer quality via FollowupAgent
+    quality_eval = followup_agent.evaluate_answer_quality(req.user_answer)
+    socratic_instruction = followup_agent.build_socratic_prompt(
+        question=session["transcript_turns"][-1]["question"],
+        answer=req.user_answer,
+        quality_eval=quality_eval
+    )
+
+    # 4. Determine next turn stage instruction from InterviewStateMachine
+    turn_count = len(session["transcript_turns"]) + 1
+    next_stage, is_finished = interview_state_machine.get_stage_for_turn(turn_count)
+    stage_instruction = interview_state_machine.get_stage_instruction(next_stage)
+
+    # 5. Truncate context with sliding-window TokenContextGuard
+    safe_transcript = token_context_guard.truncate_transcript(
+        session["transcript_text"],
+        max_tokens=3000
+    )
+
+    # 6. Build prompt with instructions
+    user_prompt_with_instructions = (
+        f"{stage_instruction}\n"
+        f"{socratic_instruction}\n"
+        f"【學生最新回答】：{req.user_answer}\n\n"
+        f"請根據以上學生回答，直接輸出一道繁體中文追問或鼓勵語句，不要任何推理說明文字。"
+    )
+
+    async def sse_stream_generator():
+        accumulated_text = ""
+        try:
+            async for token in gemma_client.astream_with_system_prompt(
+                prompt_name="response_generation",
+                user_input=user_prompt_with_instructions,
+                target_major=session["target_major"],
+                candidate_profile=session["candidate_profile"].to_structured_text(),
+                transcript=safe_transcript
+            ):
+                accumulated_text += token
+                chunk_payload = json.dumps({"text": token, "done": False}, ensure_ascii=False)
+                yield f"data: {chunk_payload}\n\n"
+        except Exception as e:
+            error_payload = json.dumps({"text": f" [流式生成中斷: {str(e)}]", "done": False}, ensure_ascii=False)
+            yield f"data: {error_payload}\n\n"
+
+        # Finalize turn
+        clean_question = gemma_client._strip_thinking_blocks(accumulated_text)
+        session_repository.add_question_turn(req.session_id, clean_question)
+        memory_manager.add_ai_message(req.session_id, clean_question)
+
+        meta_payload = json.dumps({
+            "done": True,
+            "full_text": clean_question,
+            "turn_count": len(session["transcript_turns"]),
+            "current_stage": next_stage.value,
+            "is_finished": is_finished
+        }, ensure_ascii=False)
+        yield f"data: {meta_payload}\n\n"
+
+    return StreamingResponse(
+        sse_stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
     )

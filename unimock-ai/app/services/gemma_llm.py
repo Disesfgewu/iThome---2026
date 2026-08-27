@@ -69,57 +69,61 @@ class GemmaLLMClient(BaseChatModel):
         formatted_parts.append("<start_of_turn>model\n")
         return "\n".join(formatted_parts)
 
+    def clean_markdown_formatting(self, text: str) -> str:
+        """
+        Removes remaining Markdown artifacts, prefix labels, bullet symbols,
+        bold/italic asterisks, backticks, and surrounding quotes from LLM outputs.
+        """
+        if not text:
+            return ""
+        
+        # 1. Remove XML/HTML tags and <think> blocks
+        cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        cleaned = re.sub(r'<[^>]+>', '', cleaned)
+
+        # 2. Extract last non-bullet line if LLM generated bullet points / draft notes
+        lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
+        candidate_lines = []
+        for l in lines:
+            # Skip bullet lists or CoT notes
+            if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|分析|筆記|推理)', l, re.IGNORECASE):
+                continue
+            if l.startswith('* ') or l.startswith('- ') or l.startswith('+ '):
+                continue
+            candidate_lines.append(l)
+
+        if candidate_lines:
+            cleaned = candidate_lines[-1]
+        elif lines:
+            cleaned = lines[-1]
+
+        # 3. Strip bold/italic/code markdown (**text**, *text*, __text__, _text_, `text`)
+        cleaned = re.sub(r'\*\*(.*?)\*\*', r'\1', cleaned)
+        cleaned = re.sub(r'\*(.*?)\*', r'\1', cleaned)
+        cleaned = re.sub(r'__(.*?)__', r'\1', cleaned)
+        cleaned = re.sub(r'_(.*?)_', r'\1', cleaned)
+        cleaned = re.sub(r'`(.*?)`', r'\1', cleaned)
+
+        # 4. Strip markdown headings (#, ##, ###)
+        cleaned = re.sub(r'^#+\s*', '', cleaned)
+
+        # 5. Strip prefix labels like 【追問】：, 【考官問】：, 【考官】：, 問：, 追問：, 問題：, 提問：
+        prefix_pattern = r'^(【[^】]+】|\[[^\]]+\]|問：|問題：|追問：|考官：|考官發問：|提問：)\s*'
+        cleaned = re.sub(prefix_pattern, '', cleaned).strip()
+
+        # 6. Strip leading quotes (e.g. 「...」 or "..." or '...') wrapping the whole string
+        if (cleaned.startswith('「') and cleaned.endswith('」')) or (cleaned.startswith('"') and cleaned.endswith('"')) or (cleaned.startswith("'") and cleaned.endswith("'")):
+            cleaned = cleaned[1:-1].strip()
+
+        return cleaned
+
     def _strip_thinking_blocks(self, text: str) -> str:
         """
-        Strips Gemma chain-of-thought thinking blocks from the output.
-        Gemma-4-31B sometimes outputs reasoning as markdown bullet lists (*   ...),
-        followed by the actual answer at the very end.
-        This method extracts only the actual answer content (last non-thinking line/paragraph).
+        Strips Gemma chain-of-thought thinking blocks and applies clean_markdown_formatting.
         """
         if not text:
             return text
-        
-        # Strategy 1: If the text contains <think> ... </think> XML tags, strip them
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-        if text:
-            # Check if remaining text is clean (not bullets)
-            first_line = text.splitlines()[0].strip() if text.splitlines() else ''
-            if not first_line.startswith('*') and not first_line.startswith('-'):
-                return text
-        
-        # Strategy 2: Split all lines and find the last complete Chinese sentence
-        lines = text.splitlines()
-        
-        # Find the last line that looks like a complete Chinese question/sentence
-        # (ends with ? / ？ / 。 / ！ or is a substantive Chinese text without * / -)
-        for line in reversed(lines):
-            stripped = line.strip()
-            if not stripped:
-                continue
-            # Skip pure bullet/reasoning lines
-            if stripped.startswith('*') or stripped.startswith('-'):
-                continue
-            # Skip English-only metadata lines
-            if re.match(r'^[A-Za-z\s\.:,\(\)/]+$', stripped):
-                continue
-            # Return first non-thinking line from the bottom
-            return stripped
-        
-        # Strategy 3: Split into paragraphs and return last non-thinking paragraph
-        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
-        for para in reversed(paragraphs):
-            first_line = para.splitlines()[0].strip() if para.splitlines() else ''
-            is_thinking = (
-                first_line.startswith('*') or
-                first_line.startswith('-') or
-                'Role:' in first_line or
-                'Language:' in first_line or
-                'Draft' in first_line
-            )
-            if not is_thinking:
-                return para
-        
-        return paragraphs[-1] if paragraphs else text
+        return self.clean_markdown_formatting(text)
 
     def _generate(
         self,

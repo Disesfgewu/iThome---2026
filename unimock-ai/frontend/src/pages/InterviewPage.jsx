@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WaveformBar from '../components/WaveformBar';
-import { respondInterviewApi, getReportApi } from '../api/realApi';
+import { respondInterviewApi, respondInterviewStreamApi, getReportApi } from '../api/realApi';
 import { checkSchoolTier } from '../api/mockApi';
 
 export default function InterviewPage({ sessionData, setSessionData, onFinishInterview }) {
@@ -11,6 +11,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   const [timerSeconds, setTimerSeconds] = useState(105);
   const [displayedQuestion, setDisplayedQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const currentQ = sessionData.questions[currentIdx] || sessionData.questions[0];
   const tierInfo = checkSchoolTier(sessionData.targetSchool);
@@ -55,10 +56,20 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   const handleSubmit = async () => {
     if (!candidateAnswer.trim()) return;
     setIsSubmitting(true);
+    setIsStreaming(true);
 
     try {
-      const res = await respondInterviewApi(sessionData.sessionId, currentIdx, candidateAnswer);
-      
+      let streamedQuestion = '';
+      const res = await respondInterviewStreamApi(
+        sessionData.sessionId,
+        currentIdx,
+        candidateAnswer,
+        (chunkText, currentFullText) => {
+          streamedQuestion = currentFullText;
+        }
+      );
+
+      const finalQuestionText = res.nextQuestion || streamedQuestion;
       const nextTurnNumber = currentIdx + 2;
       let nextPhase = "專案細節深挖與架構設計";
       if (currentIdx + 1 === 1) {
@@ -81,11 +92,11 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
         ];
 
         const updatedQuestions = [...prev.questions];
-        if (!res.isFinished && res.nextQuestion) {
+        if (!res.isFinished && finalQuestionText) {
           updatedQuestions.push({
             index: nextTurnNumber,
             phase: nextPhase,
-            text: res.nextQuestion,
+            text: finalQuestionText,
             hint: "著重底層原理、問題分析與具體優化成效！"
           });
         }
@@ -98,6 +109,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
       });
 
       setCandidateAnswer('');
+      setIsStreaming(false);
       setIsSubmitting(false);
 
       if (res.isFinished || (currentIdx + 1 >= (sessionData.questionCount || 3))) {
@@ -116,6 +128,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
       }
     } catch (err) {
       console.error("Submit error:", err);
+      setIsStreaming(false);
       setIsSubmitting(false);
     }
   };
@@ -207,11 +220,19 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
                   <span class="material-symbols-outlined text-indigo-600 text-sm">psychology</span>
                   核心發問 (Question {currentIdx + 1})
                 </span>
-                {tierInfo.isTopTier && (
-                  <span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-bold font-mono">
-                    高難度專業技術 / 申論題 Mode
-                  </span>
-                )}
+                <div class="flex items-center gap-2">
+                  {isStreaming && (
+                    <span class="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-bold font-mono animate-pulse flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping"></span>
+                      SSE 實時串流中
+                    </span>
+                  )}
+                  {tierInfo.isTopTier && (
+                    <span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-bold font-mono">
+                      高難度專業技術 / 申論題 Mode
+                    </span>
+                  )}
+                </div>
               </div>
               <p class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed">
                 {displayedQuestion}
