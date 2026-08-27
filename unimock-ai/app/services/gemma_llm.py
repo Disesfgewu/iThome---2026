@@ -234,9 +234,26 @@ class GemmaLLMClient(BaseChatModel):
             return self._model.generate_content(prompt_str, stream=True)
 
         response_stream = await asyncio.to_thread(_stream_sync)
+        in_think_block = False
+        think_buffer = ""
         for chunk in response_stream:
-            if chunk.text:
-                yield chunk.text
-                await asyncio.sleep(0.01)
+            if not chunk.text:
+                continue
+            text_chunk = chunk.text
+            if "<think>" in text_chunk:
+                in_think_block = True
+            
+            if in_think_block:
+                think_buffer += text_chunk
+                if "</think>" in think_buffer:
+                    in_think_block = False
+                    after_think = think_buffer.split("</think>", 1)[1].strip()
+                    if after_think:
+                        yield after_think
+                    think_buffer = ""
+                continue
+            
+            yield text_chunk
+            await asyncio.sleep(0.01)
 
 gemma_client = GemmaLLMClient()
