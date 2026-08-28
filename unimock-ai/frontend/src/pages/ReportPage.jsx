@@ -5,20 +5,27 @@ export default function ReportPage({ sessionData, onReset }) {
   const [openAccordion, setOpenAccordion] = useState(0);
 
   const defaultScores = {
-    logic_structure: 8,
-    major_relevance: 9,
-    communication_clarity: 8,
-    adaptability: 8
+    logic_structure: 8.0,
+    major_relevance: 8.5,
+    communication_clarity: 8.0,
+    adaptability: 7.5
   };
 
   const report = sessionData.evaluationReport || {
     scores: defaultScores,
-    overall_feedback: "面試表現優異，能清晰陳述技術專案與實際解決問題之思考脈絡。",
-    strengths: ["技術實作能力紮實", "STAR 原則回答條理分明"],
-    improvements: ["可進一步結合目標科系之未來研究方向進行更深入之論述"],
+    overall_feedback: "面試整體表現符合預期，能針對考官提問進行結構化回答與經驗陳述。",
+    strengths: ["回答展現基礎條理性", "對於個人經歷與志願具備良好自信"],
+    improvements: ["可進一步運用 STAR 原則強化 Action 與 Result 的具體量化數據"],
     question_diagnoses: []
   };
-  const scores = report.scores || defaultScores;
+
+  const rawScores = report.scores || defaultScores;
+  const scores = {
+    logic_structure: rawScores.logic_structure || defaultScores.logic_structure,
+    major_relevance: rawScores.major_relevance || defaultScores.major_relevance,
+    communication_clarity: rawScores.communication_clarity || defaultScores.communication_clarity,
+    adaptability: rawScores.adaptability || defaultScores.adaptability
+  };
 
   const handleDownloadMarkdown = () => {
     const content = `# UniMock AI 模擬面試診斷報告

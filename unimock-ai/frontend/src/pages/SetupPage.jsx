@@ -80,8 +80,8 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
               {
                 index: 1,
                 phase: '破冰自述與專業動機',
-                text: `請以 ${targetSchool} ${targetMajor} 學生的角度，介紹您最具代表性的一項專案或學習成果，並說明您為什麼選擇這個科系。`,
-                hint: '著重動機與具體學習成果！'
+                text: `歡迎來到 ${targetSchool} ${targetMajor} 的面試模擬現場。請您先進行約 1 到 2 分鐘的自我介紹，說明您的報考動機，以及您最具代表性的個人優勢與專長？`,
+                hint: '著重表達條理、動機與個人特色！'
               }
             ]
           };

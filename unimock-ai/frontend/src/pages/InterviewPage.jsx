@@ -43,13 +43,24 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
     return () => clearInterval(timer);
   }, [sessionData.isGeneratingQuestion, currentQ]);
 
+  // Helper to sanitize leftover markdown asterisks, quotes, and bracket tags
+  const sanitizeText = (str) => {
+    if (!str) return '';
+    return str
+      .replace(/^#+\s*/g, '')
+      .replace(/^(【[^】]+】|\[[^\]]+\]|問：|追問：|考官：|考官發問：)\s*/g, '')
+      .replace(/[*`~"']/g, '')
+      .replace(/^[「『"“'`](.*?)[」』"”'`]$/g, '$1')
+      .trim();
+  };
+
   // Streaming typewriter effect + TTS trigger when complete
   useEffect(() => {
     if (!currentQ || !currentQ.text) {
       setDisplayedQuestion('');
       return;
     }
-    const fullText = currentQ.text;
+    const fullText = sanitizeText(currentQ.text);
     setDisplayedQuestion('');
     typewriterDoneRef.current = false;
 

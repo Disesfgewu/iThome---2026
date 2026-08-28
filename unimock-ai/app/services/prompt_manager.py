@@ -44,16 +44,15 @@ class AsyncPromptManager:
         content_lines = [l for l in lines if not l.strip().startswith('#')]
         clean_template = '\n'.join(content_lines).strip()
 
-        # Format template with provided variables, filling missing keys with empty string
+        # Format template by safely replacing {key} placeholders without crashing on unescaped braces
+        import re
+        result = clean_template
         if kwargs:
-            import re
-            placeholders = re.findall(r'\{(\w+)\}', clean_template)
-            fill_kwargs = {p: kwargs.get(p, '') for p in placeholders}
-            try:
-                return clean_template.format(**fill_kwargs)
-            except Exception:
-                return clean_template
-        return clean_template
+            for key, val in kwargs.items():
+                result = result.replace(f"{{{key}}}", str(val if val is not None else ""))
+        # Strip any remaining unpopulated {placeholder} tags
+        result = re.sub(r'\{[a-zA-Z0-9_]+\}', '', result)
+        return result
 
     def _read_file_sync(self, filepath: str) -> str:
         with open(filepath, "r", encoding="utf-8") as f:

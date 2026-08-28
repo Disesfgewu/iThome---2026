@@ -85,7 +85,6 @@ class GemmaLLMClient(BaseChatModel):
         lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
         candidate_lines = []
         for l in lines:
-            # Skip bullet lists or CoT notes
             if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|分析|筆記|推理)', l, re.IGNORECASE):
                 continue
             if l.startswith('* ') or l.startswith('- ') or l.startswith('+ '):
@@ -97,25 +96,20 @@ class GemmaLLMClient(BaseChatModel):
         elif lines:
             cleaned = lines[-1]
 
-        # 3. Strip bold/italic/code markdown (**text**, *text*, __text__, _text_, `text`)
-        cleaned = re.sub(r'\*\*(.*?)\*\*', r'\1', cleaned)
-        cleaned = re.sub(r'\*(.*?)\*', r'\1', cleaned)
-        cleaned = re.sub(r'__(.*?)__', r'\1', cleaned)
-        cleaned = re.sub(r'_(.*?)_', r'\1', cleaned)
-        cleaned = re.sub(r'`(.*?)`', r'\1', cleaned)
-
-        # 4. Strip markdown headings (#, ##, ###)
-        cleaned = re.sub(r'^#+\s*', '', cleaned)
-
-        # 5. Strip prefix labels like 【追問】：, 【考官問】：, 【考官】：, 問：, 追問：, 問題：, 提問：
+        # 3. Strip all bracketed prefixes (e.g. 【追問】、【考官】、【問題】、[系統]、[問題]、問：、追問：)
         prefix_pattern = r'^(【[^】]+】|\[[^\]]+\]|問：|問題：|追問：|考官：|考官發問：|提問：)\s*'
         cleaned = re.sub(prefix_pattern, '', cleaned).strip()
 
-        # 6. Strip leading quotes (e.g. 「...」 or "..." or '...') wrapping the whole string
-        if (cleaned.startswith('「') and cleaned.endswith('」')) or (cleaned.startswith('"') and cleaned.endswith('"')) or (cleaned.startswith("'") and cleaned.endswith("'")):
-            cleaned = cleaned[1:-1].strip()
+        # 4. Remove all markdown headings, asterisks, backticks, double/single quotes, and bracket quotes
+        cleaned = re.sub(r'^#+\s*', '', cleaned)
+        cleaned = cleaned.replace('*', '').replace('`', '').replace('~', '')
+        cleaned = cleaned.replace('"', '').replace("'", '')
 
-        return cleaned
+        # 5. Strip leading/trailing quote marks (e.g. 「...」 or ”...”)
+        cleaned = re.sub(r'^[「『"“\'`]\s*', '', cleaned)
+        cleaned = re.sub(r'\s*[」』"”\'`]$', '', cleaned)
+
+        return cleaned.strip()
 
     def _strip_thinking_blocks(self, text: str) -> str:
         """

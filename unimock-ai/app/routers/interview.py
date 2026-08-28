@@ -31,7 +31,13 @@ async def setup_interview_session(req: InterviewSetupRequest):
         candidate_profile=req.candidate_profile
     )
 
-    # Generate initial RAG question
+    # Generate initial ice-breaking self-introduction question tailored to target school & major
+    first_question = (
+        f"歡迎來到{req.target_school} {req.target_major}的面試模擬現場。請您先進行約 1 到 2 分鐘的自我介紹，"
+        f"說明您的報考動機，以及您最具代表性的個人優勢與專長？"
+    )
+    
+    # Pre-retrieve RAG seed questions for subsequent turns
     rag_res = await rag_service.generate_rag_question_for_candidate(
         candidate_profile=req.candidate_profile or req.target_major,
         target_school=req.target_school,
@@ -39,7 +45,6 @@ async def setup_interview_session(req: InterviewSetupRequest):
         interview_mode=req.interview_mode
     )
 
-    first_question = rag_res["generated_question"]
     session_repository.add_question_turn(session_id, first_question)
     
     # Initialize LangChain Memory and record first AI question
