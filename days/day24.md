@@ -106,15 +106,15 @@ useEffect(() => {
 
 ## 5. 實際效果展示
 
-### 全流程實機動態操作展示（設定頁 → 立即跳轉 Loading → 面試艙與 TTS 發話）
+### 設定頁啟動模擬面試艙
 
-![TTS Full Flow Live Demo](images/day24/demo.webp)
+![Setup Page](images/day24/01_setup_page.png)
 
-### AI 正在朗讀題目（音波跳動 + 發話標籤 + 停止按鈕）
+### 點擊啟動後，立即跳轉並顯示準備題目 Loading 畫面
 
-![TTS Speaking Waveform](images/day24/02_interview_waveform_standby.png)
+![Loading Screen](images/day24/01_loading_screen.png)
 
-### 朗讀啟動後音波動畫與「面試官發話中」狀態
+### 題目出爐，TTS 啟動朗讀（音波跳動 + 面試官發話中標籤 + 停止按鈕）
 
 ![TTS Active Speaking](images/day24/03_interview_waveform_speaking.png)
 
