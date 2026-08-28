@@ -16,14 +16,22 @@
 
 ## 2. TextToSpeechEngine 模組
 
-建立 `frontend/src/utils/textToSpeech.js`，封裝 `SpeechSynthesisUtterance`：
+建立 `frontend/src/utils/textToSpeech.js`，封裝 `SpeechSynthesisUtterance`，並加入防重複播放與非同步佇列保護：
 
 ```javascript
 export class TextToSpeechEngine {
-  speak(text, { onStart, onEnd, onError, lang = 'zh-TW', rate = 0.95, pitch = 1.05 } = {}) {
-    if (!('speechSynthesis' in window)) { if (onEnd) onEnd(); return; }
+  constructor() {
+    this.utterance = null;
+    this.isSpeaking = false;
+    this.currentText = '';
+  }
 
-    window.speechSynthesis.cancel(); // 取消先前語音
+  speak(text, { onStart, onEnd, onError, lang = 'zh-TW', rate = 0.95, pitch = 1.05 } = {}) {
+    if (!('speechSynthesis' in window) || !text) return;
+    if (this.isSpeaking && this.currentText === text) return; // ✅ 防重複觸發保護
+
+    this.stop();
+    this.currentText = text;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
@@ -31,13 +39,17 @@ export class TextToSpeechEngine {
     utterance.pitch = pitch;
 
     utterance.onstart = () => { this.isSpeaking = true; if (onStart) onStart(); };
-    utterance.onend   = () => { this.isSpeaking = false; if (onEnd) onEnd(); };
-    utterance.onerror = (e) => { this.isSpeaking = false; if (onError) onError(e.error); };
+    utterance.onend   = () => { this.isSpeaking = false; this.currentText = ''; if (onEnd) onEnd(); };
+    utterance.onerror = (e) => { this.isSpeaking = false; this.currentText = ''; if (onError) onError(e.error); };
 
-    window.speechSynthesis.speak(utterance);
+    setTimeout(() => { window.speechSynthesis.speak(utterance); }, 50);
   }
 
-  stop() { window.speechSynthesis.cancel(); this.isSpeaking = false; }
+  stop() {
+    window.speechSynthesis.cancel();
+    this.isSpeaking = false;
+    this.currentText = '';
+  }
 }
 
 export const ttsEngine = new TextToSpeechEngine();
@@ -45,20 +57,19 @@ export const ttsEngine = new TextToSpeechEngine();
 
 ---
 
-## 3. 整合進 InterviewPage：打字機結束後自動朗讀
+## 3. 整合進 InterviewPage：打字機結束後自動朗讀與單次朗讀保護
+
+在 React 18 元件生命週期中，為了避免 re-render 導致題目被重複念兩次，我們使用 `spokenQuestionIndexRef` 鎖定目前已朗讀的題目索引：
 
 ```javascript
 import { ttsEngine } from '../utils/textToSpeech';
 
-const [isSpeaking, setIsSpeaking] = useState(false);
-const typewriterDoneRef = useRef(false);
+const spokenQuestionIndexRef = useRef(-1);
 
 useEffect(() => {
   if (!currentQ?.text) return;
   const fullText = currentQ.text;
-  typewriterDoneRef.current = false;
-  ttsEngine.stop();
-  setIsSpeaking(false);
+  setDisplayedQuestion('');
 
   let i = 0;
   const interval = setInterval(() => {
@@ -67,9 +78,9 @@ useEffect(() => {
       setDisplayedQuestion(fullText.slice(0, i));
     } else {
       clearInterval(interval);
-      // ✅ 打字機結束 → 觸發 TTS 朗讀
-      if (!typewriterDoneRef.current) {
-        typewriterDoneRef.current = true;
+      // ✅ 打字機結束 → 確保每題僅觸發朗讀一次
+      if (spokenQuestionIndexRef.current !== currentIdx) {
+        spokenQuestionIndexRef.current = currentIdx;
         ttsEngine.speak(fullText, {
           onStart: () => setIsSpeaking(true),
           onEnd:   () => setIsSpeaking(false),
@@ -79,49 +90,45 @@ useEffect(() => {
     }
   }, 20);
 
-  return () => { clearInterval(interval); ttsEngine.stop(); setIsSpeaking(false); };
+  return () => clearInterval(interval);
 }, [currentIdx, currentQ?.text]);
 ```
 
 ---
 
-## 4. WaveformBar 連接 isSpeaking 狀態
+## 4. 關鍵體驗修正：無意義回答嚴肅處置與直接結束體驗
 
-原本 WaveformBar 是固定動畫，現在改成根據 `isSpeaking` 狀態決定是否跳動：
+### 4.1 無意義回答（如「不知道、沒想法」）的 System Prompt 重構
 
-```jsx
-<WaveformBar isSpeaking={isSpeaking} />
-<span class={`text-xs font-mono font-bold tracking-widest uppercase mt-2
-  ${isSpeaking ? 'text-indigo-600' : 'text-slate-400'}`}>
-  {isSpeaking ? 'Gemma-4-31B 面試官發話中' : '等待作答中'}
-</span>
-{isSpeaking && (
-  <button onClick={() => { ttsEngine.stop(); setIsSpeaking(false); }}>
-    停止語音朗讀
-  </button>
-)}
-```
+在 `app/services/followup_agent.py` 與 `response_generation.md` 中，新增針對空白、逃避或極短無意義回答的攔截比對：
+
+- **禁止盲目稱讚**：當考生回答「不知道，沒有想法」時，系統提示詞嚴格禁止輸出「很好/沒關係」等瞎捧用語。
+- **嚴肅引導**：面試官會明確點出「該回答過於簡略，無法評估思考能力」，並主動引導考生轉由備審資料經驗切入。
+
+### 4.2 「直接結束 (產出報告)」即時 Loading 反饋
+
+將原先阻塞式的 `window.confirm` 改為立即無縫跳轉至專屬「診斷報告生成中」全螢幕動畫遮罩，並停止任何正在播放的 TTS 語音。
 
 ---
 
 ## 5. 實際效果展示
 
-### 設定頁啟動模擬面試艙
-
-![Setup Page](images/day24/01_setup_page.png)
-
-### 點擊啟動後，立即跳轉並顯示準備題目 Loading 畫面
-
-![Loading Screen](images/day24/01_loading_screen.png)
-
-### 題目出爐，TTS 啟動朗讀（音波跳動 + 面試官發話中標籤 + 停止按鈕）
+### 題目出爐，TTS 啟動單次朗讀（音波跳動 + 面試官發話中標籤 + 停止按鈕）
 
 ![TTS Active Speaking](images/day24/03_interview_waveform_speaking.png)
+
+### 考生輸入「不知道，沒有想法」時，AI 面試官嚴肅專業地指回主題（絕不盲目稱讚）
+
+![Evasive Answer Response](images/day24/04_evasive_response.png)
+
+### 點擊「直接結束」，立即無縫跳轉「正在為您生成戰略評測診斷報告」載入畫面
+
+![Report Generating Loading](images/day24/05_report_loading.png)
 
 ---
 
 ## 結語與明天預告
 
-今天 UniMock AI 面試官不再只是「打字」，而是真正「開口說話」。音波動畫搭配 TTS 讓整個面試體驗更接近真實情境。
+今天我們不僅實現了 TTS 語音朗讀與音波動畫，更補強了 AI 面試官面對逃避性回答時的專業立場與「直接結束」的體驗細節。
 
 明天 **【Day 25】**，我們將整合 **Chart.js** 在前端動態渲染 STAR 多維度面試成績雷達圖！

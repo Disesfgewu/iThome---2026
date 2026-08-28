@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { uploadResumeApi, startInterviewApi } from '../api/realApi';
 import { mockDepartmentGroups, checkSchoolTier } from '../api/mockApi';
 
@@ -9,7 +9,9 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
   const [persona, setPersona] = useState(sessionData.interviewerPersona || 'strict');
   const [qCount, setQCount] = useState(sessionData.questionCount || 3);
   const [isScanning, setIsScanning] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const hasStartedRef = useRef(false);
 
   const tierInfo = checkSchoolTier(targetSchool);
 
@@ -26,29 +28,69 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
   };
 
   const handleStart = async () => {
-    const startRes = await startInterviewApi(
-      sessionData.sessionId,
-      targetSchool,
-      targetGroup,
-      targetMajor,
-      persona,
-      qCount,
-      sessionData.extractedProfile
-    );
+    // 防止重複點擊：若已在啟動中，直接忽略
+    if (hasStartedRef.current || isStarting) return;
+    hasStartedRef.current = true;
+    setIsStarting(true);
 
+    // ✅ Step 1：立即跳轉至面試艙（帶 loading 狀態），不等 API
     setSessionData((prev) => ({
       ...prev,
-      sessionId: startRes.sessionId || prev.sessionId,
       targetSchool,
       targetGroup,
       targetMajor,
       interviewerPersona: persona,
       questionCount: qCount,
-      questions: startRes.firstQuestion ? [
-        { index: 1, phase: '破冰自述與專業動機', text: startRes.firstQuestion, hint: '著重底層原理與專案動機！' }
-      ] : prev.questions
+      isGeneratingQuestion: true,    // ← 面試艙用此旗標顯示載入中
+      questions: []
     }));
     onStartInterview();
+
+    // ✅ Step 2：在背景非同步呼叫 API，回傳後更新 sessionData
+    try {
+      const startRes = await startInterviewApi(
+        sessionData.sessionId,
+        targetSchool,
+        targetGroup,
+        targetMajor,
+        persona,
+        qCount,
+        sessionData.extractedProfile
+      );
+
+      setSessionData((prev) => {
+        const firstQ = startRes.firstQuestion;
+        if (firstQ) {
+          return {
+            ...prev,
+            sessionId: startRes.sessionId || prev.sessionId,
+            isGeneratingQuestion: false,
+            questions: [
+              { index: 1, phase: '破冰自述與專業動機', text: firstQ, hint: '著重底層原理與專案動機！' }
+            ]
+          };
+        } else {
+          // API 回傳但 firstQuestion 為空 → 用 fallback 問題避免卡在 loading
+          console.warn('startInterviewApi returned empty firstQuestion, using fallback');
+          return {
+            ...prev,
+            sessionId: startRes.sessionId || prev.sessionId,
+            isGeneratingQuestion: false,
+            questions: [
+              {
+                index: 1,
+                phase: '破冰自述與專業動機',
+                text: `請以 ${targetSchool} ${targetMajor} 學生的角度，介紹您最具代表性的一項專案或學習成果，並說明您為什麼選擇這個科系。`,
+                hint: '著重動機與具體學習成果！'
+              }
+            ]
+          };
+        }
+      });
+    } catch (err) {
+      console.error('startInterviewApi error:', err);
+      setSessionData((prev) => ({ ...prev, isGeneratingQuestion: false }));
+    }
   };
 
   return (
@@ -227,19 +269,43 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
         {/* Right 40%: File Upload & Extracted Profile */}
         <div class="lg:col-span-5 flex flex-col gap-6">
           {/* Drag and Drop Area */}
-          <label class="relative bg-indigo-50/50 border-2 border-dashed border-indigo-300 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50 transition-colors relative overflow-hidden min-h-[200px]">
-            {isScanning && <div class="mvScan" />}
-            <input type="file" accept=".pdf" onChange={handleFileUpload} class="hidden" />
-            <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center mb-3 shadow-md">
-              <span class="material-symbols-outlined text-3xl">cloud_upload</span>
-            </div>
-            <h3 class="font-bold text-slate-900 text-base mb-1">上傳備審資料 (PDF)</h3>
-            <p class="text-xs text-slate-500">點擊上傳或拖曳 PDF 檔案至此</p>
-            {uploadedFileName && (
-              <div class="mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-xs text-xs font-mono text-slate-700">
-                <span class="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
-                {uploadedFileName}
-              </div>
+          <label class={`relative border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors relative overflow-hidden min-h-[200px] ${
+            isScanning
+              ? 'bg-slate-50 border-slate-300 cursor-not-allowed'
+              : 'bg-indigo-50/50 border-indigo-300 cursor-pointer hover:bg-indigo-50'
+          }`}>
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileUpload}
+              disabled={isScanning}
+              class="hidden"
+            />
+            {isScanning ? (
+              <>
+                <div class="w-14 h-14 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mb-3" />
+                <h3 class="font-bold text-slate-700 text-base mb-1">AI 正在解析備審資料...</h3>
+                <p class="text-xs text-slate-500 font-mono">Gemma-4-31B 多模態分析中，請稍候</p>
+                <div class="flex gap-1.5 mt-3">
+                  {[0,1,2].map(i => (
+                    <div key={i} class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center mb-3 shadow-md">
+                  <span class="material-symbols-outlined text-3xl">cloud_upload</span>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base mb-1">上傳備審資料 (PDF)</h3>
+                <p class="text-xs text-slate-500">點擊上傳或拖曳 PDF 檔案至此</p>
+                {uploadedFileName && (
+                  <div class="mt-4 inline-flex items-center gap-2 bg-white border border-emerald-200 px-3 py-1.5 rounded-full shadow-xs text-xs font-mono text-slate-700">
+                    <span class="material-symbols-outlined text-emerald-600 text-sm">check_circle</span>
+                    {uploadedFileName}
+                  </div>
+                )}
+              </>
             )}
           </label>
 
@@ -307,10 +373,24 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
       <div class="mt-8 pt-6 border-t border-slate-200 flex justify-end">
         <button
           onClick={handleStart}
-          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg px-8 py-3.5 rounded-xl shadow-lg transition-all flex items-center gap-3 active:scale-95"
+          disabled={isStarting || isScanning}
+          class={`font-bold text-lg px-8 py-3.5 rounded-xl shadow-lg transition-all flex items-center gap-3 active:scale-95 ${
+            isStarting || isScanning
+              ? 'bg-slate-400 text-slate-200 cursor-not-allowed opacity-70'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+          }`}
         >
-          🚀 啟動模擬面試艙
-          <span class="material-symbols-outlined">arrow_forward</span>
+          {isStarting ? (
+            <>
+              <span class="material-symbols-outlined animate-spin text-xl">progress_activity</span>
+              正在連線 AI 面試官...
+            </>
+          ) : (
+            <>
+              🚀 啟動模擬面試艙
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </>
+          )}
         </button>
       </div>
     </div>

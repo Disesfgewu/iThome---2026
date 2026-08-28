@@ -1,30 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import WaveformBar from '../components/WaveformBar';
 import { respondInterviewApi, respondInterviewStreamApi, getReportApi } from '../api/realApi';
 import { checkSchoolTier } from '../api/mockApi';
+import { SpeechToTextEngine } from '../utils/speechToText';
+import { ttsEngine } from '../utils/textToSpeech';
 
 export default function InterviewPage({ sessionData, setSessionData, onFinishInterview }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [candidateAnswer, setCandidateAnswer] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showHintModal, setShowHintModal] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(105);
   const [displayedQuestion, setDisplayedQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const sttEngineRef = useRef(null);
+  const typewriterDoneRef = useRef(false);
+  const spokenQuestionIndexRef = useRef(-1);
 
-  const currentQ = sessionData.questions[currentIdx] || sessionData.questions[0];
+  const currentQ = sessionData.questions?.[currentIdx] || sessionData.questions?.[0] || null;
   const tierInfo = checkSchoolTier(sessionData.targetSchool);
 
-  // Timer countdown
+  // Initialize SpeechToTextEngine
   useEffect(() => {
+    sttEngineRef.current = new SpeechToTextEngine(
+      (text) => { if (text.trim()) setCandidateAnswer(text); },
+      (err)  => { console.warn('STT Error:', err); setIsRecording(false); },
+      ()     => { setIsRecording(false); }
+    );
+    // Stop TTS on unmount
+    return () => ttsEngine.stop();
+  }, []);
+
+  // Timer countdown — only runs after question is ready
+  useEffect(() => {
+    if (sessionData.isGeneratingQuestion || !currentQ) return;
     const timer = setInterval(() => {
       setTimerSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [sessionData.isGeneratingQuestion, currentQ]);
 
-  // Streaming typewriter effect for question
+  // Streaming typewriter effect + TTS trigger when complete
   useEffect(() => {
     if (!currentQ || !currentQ.text) {
       setDisplayedQuestion('');
@@ -32,6 +51,14 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
     }
     const fullText = currentQ.text;
     setDisplayedQuestion('');
+    typewriterDoneRef.current = false;
+
+    // Only stop previous speech if question index changed
+    if (spokenQuestionIndexRef.current !== currentIdx) {
+      ttsEngine.stop();
+      setIsSpeaking(false);
+    }
+
     let i = 0;
     const interval = setInterval(() => {
       i++;
@@ -39,17 +66,93 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
         setDisplayedQuestion(fullText.slice(0, i));
       } else {
         clearInterval(interval);
+        // ✅ Typewriter done → trigger TTS to speak the question ONLY ONCE per question index
+        if (spokenQuestionIndexRef.current !== currentIdx) {
+          spokenQuestionIndexRef.current = currentIdx;
+          typewriterDoneRef.current = true;
+          ttsEngine.speak(fullText, {
+            onStart: () => setIsSpeaking(true),
+            onEnd:   () => setIsSpeaking(false),
+            onError: () => setIsSpeaking(false),
+          });
+        }
       }
     }, 20);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [currentIdx, currentQ?.text]);
+
+  // ✅ Loading state guard: show spinner while generating report or question
+  if (isGeneratingReport) {
+    return (
+      <div class="max-w-7xl mx-auto px-4 py-20 flex flex-col items-center justify-center gap-6 text-center">
+        <div class="relative">
+          <div class="w-20 h-20 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin"></div>
+          <span class="absolute inset-0 flex items-center justify-center material-symbols-outlined text-emerald-600 text-2xl">analytics</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">正在為您生成「戰略評測診斷報告」...</h2>
+          <p class="text-sm text-slate-500 font-mono">Gemma-4-31B 正在彙整對答歷程，進行 STAR 四大維度評分與潛在盲區分析...</p>
+          <p class="text-xs text-slate-400 font-mono mt-1">{sessionData.targetSchool} · {sessionData.targetMajor}</p>
+        </div>
+        <div class="flex gap-1.5 mt-2">
+          {[0, 1, 2].map(i => (
+            <div key={i} class="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }}></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionData.isGeneratingQuestion || !currentQ) {
+    return (
+      <div class="max-w-7xl mx-auto px-4 py-20 flex flex-col items-center justify-center gap-6 text-center">
+        <div class="relative">
+          <div class="w-20 h-20 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+          <span class="absolute inset-0 flex items-center justify-center material-symbols-outlined text-indigo-600 text-2xl">psychology</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">AI 面試官正在準備題目中...</h2>
+          <p class="text-sm text-slate-500 font-mono">Gemma-4-31B 正在根據您的備審資料和志願學校產生專屬問題...</p>
+          <p class="text-xs text-slate-400 font-mono mt-1">{sessionData.targetSchool} · {sessionData.targetMajor}</p>
+        </div>
+        <div class="flex gap-1.5 mt-2">
+          {[0, 1, 2].map(i => (
+            <div key={i} class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }}></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const simulateSpeechRecognition = () => {
+    const sampleAnswer = currentIdx === 0
+      ? '教授您好，在邊緣裝置推論優化專案中，我使用了 TensorRT 模型量化與 ONNX Runtime，成功將整體邊緣影像識別延遲從 120ms 顯著降至 45ms，並進行全流程 Profiling 驗證。'
+      : '在 FP32 轉 INT8 過程中，推論速度提升約 3.8 倍，但精準度下降了約 1.5%。為了權衡，我採用 TensorRT 的 Entropy Calibrator 最小化資訊損失，並在邊緣端設計滑動窗口濾波演算法對控制訊號進行平滑化處理。';
+    
+    let i = 0;
+    const interval = setInterval(() => {
+      i += 3;
+      if (i <= sampleAnswer.length) {
+        setCandidateAnswer(sampleAnswer.slice(0, i));
+      } else {
+        setCandidateAnswer(sampleAnswer);
+        clearInterval(interval);
+      }
+    }, 80);
+  };
 
   const toggleRecording = () => {
     if (!isRecording) {
       setIsRecording(true);
-      setCandidateAnswer('教授您好，我在高中時期主導開發了基於 OpenCV 的智慧邊緣影像辨識系統，成功將推論延遲降低至 45ms，並應用於校內自走車避障專案獲得全國資訊競賽佳作。');
+      const started = sttEngineRef.current?.start();
+      if (!started) {
+        simulateSpeechRecognition();
+      }
     } else {
       setIsRecording(false);
+      sttEngineRef.current?.stop();
     }
   };
 
@@ -134,9 +237,9 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   };
 
   const handleEarlyFinish = async () => {
-    const confirmFinish = window.confirm("確定要提早結束本次實戰面試，並立即進入「戰略評測診斷報告」嗎？\n系統將為您當前的對答紀錄進行綜合評分！");
-    if (!confirmFinish) return;
-
+    ttsEngine.stop();
+    setIsSpeaking(false);
+    setIsGeneratingReport(true);
     setIsSubmitting(true);
     try {
       const reportRes = await getReportApi(sessionData.sessionId);
@@ -199,17 +302,25 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
           {/* Avatar Station */}
           <div class="bg-white border border-slate-200 rounded-xl p-5 flex flex-col items-center justify-center text-center relative shadow-xs">
             <div class="relative mb-3">
-              <div class="absolute -inset-1.5 rounded-full bg-indigo-100 animate-pulse opacity-75"></div>
+              <div class={`absolute -inset-1.5 rounded-full transition-all duration-300 ${isSpeaking ? 'bg-indigo-200 animate-pulse opacity-100' : 'bg-indigo-50 opacity-40'}`}></div>
               <img
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqC2pswO3FPBlDhCffhVeyAiggy-MwnKLaeCaR2Bi1xt40tuF6z3-2IBQpaRCcwDI8Q9k3biVci6SnumJRP8JgxSxaFE8jQ_O7q9oVD4LUP9qms6ZkLp-0KZ1xvOt77vJf1Zr6tASz6IUy5FRQeqlOSxaePbpJ8Pa8b1673yRkz5H5TzAfMZiqAkQ2uT0OFWDZUId7AsL-C0psn1DVHIq1in5MyBhp2p0Qum4mf7xIXoLvyA7yhkhD"
                 alt="AI Professor"
                 class="w-20 h-20 rounded-full object-cover border-3 border-white shadow-md relative z-10"
               />
             </div>
-            <WaveformBar isSpeaking={true} />
-            <span class="text-xs font-mono font-bold text-indigo-600 tracking-widest uppercase mt-2">
-              Gemma-4-31B 面試官發話中
+            <WaveformBar isSpeaking={isSpeaking} />
+            <span class={`text-xs font-mono font-bold tracking-widest uppercase mt-2 transition-colors duration-300 ${isSpeaking ? 'text-indigo-600' : 'text-slate-400'}`}>
+              {isSpeaking ? 'Gemma-4-31B 面試官發話中' : '等待作答中'}
             </span>
+            {isSpeaking && (
+              <button
+                onClick={() => { ttsEngine.stop(); setIsSpeaking(false); }}
+                class="mt-2 text-xs text-slate-400 hover:text-slate-600 font-mono underline cursor-pointer"
+              >
+                停止語音朗讀
+              </button>
+            )}
           </div>
 
           {/* Core Question Card */}
@@ -271,9 +382,13 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
                 <span class="material-symbols-outlined text-sm">closed_caption</span>
                 即時語音轉文字 (STT) 應答區 (第 {currentIdx + 1} 題作答)
               </span>
-              <span class="text-xs font-mono text-indigo-600 flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                REC
+              <span class={`text-xs font-mono flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold transition-all ${
+                isRecording
+                  ? 'bg-rose-100 text-rose-700 border border-rose-300 animate-pulse'
+                  : 'text-slate-500 bg-slate-100'
+              }`}>
+                <span class={`w-2 h-2 rounded-full ${isRecording ? 'bg-rose-600 animate-ping' : 'bg-slate-400'}`}></span>
+                {isRecording ? '語音收音中 (STT REC)' : '待命開口'}
               </span>
             </div>
 
