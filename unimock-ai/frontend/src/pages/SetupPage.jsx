@@ -160,18 +160,18 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
             <div>
               <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <span class="material-symbols-outlined text-indigo-600 text-lg">school</span>
-                目標學系 (文字輸入)
+                目標系所 / 專業 (文字輸入)
               </label>
               <input
                 type="text"
                 value={targetMajor}
                 onChange={(e) => setTargetMajor(e.target.value)}
-                placeholder="請輸入目標學系，例如：資訊工程學系、智慧醫療與健康資料學程..."
+                placeholder="請輸入目標系所，例如：資訊工程學系、會計學研究所..."
                 class="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold"
               />
               <div class="flex gap-2 mt-2">
                 <span class="text-xs text-slate-400 font-mono">熱門快速填入：</span>
-                {['資訊工程學系', '電機工程學系', '人工智慧學系', '企業管理學系'].map((m) => (
+                {['資訊工程學系', '電機工程學系', '會計學研究所', '企業管理研究所'].map((m) => (
                   <button
                     key={m}
                     type="button"

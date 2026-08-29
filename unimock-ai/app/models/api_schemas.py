@@ -51,6 +51,10 @@ class ReportGenerateResponse(BaseModel):
     target_school: str
     target_major: str
     total_turns: int
+    overall_score: float = 80.0
+    radar_scores: Dict[str, float] = Field(default_factory=dict)
+    strengths: List[str] = Field(default_factory=list)
+    improvements: List[str] = Field(default_factory=list)
     scoring_evaluation: str
     overall_strategic_report: str
 

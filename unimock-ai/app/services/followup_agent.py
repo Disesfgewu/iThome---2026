@@ -13,22 +13,23 @@ class FollowupAgent:
         Returns quality evaluation metrics.
         """
         clean_text = answer.strip()
+        ans_len = len(clean_text)
         # Detect invalid/meaningless/empty answer
         evasive_keywords = ["不知道", "不清楚", "沒想法", "隨便", "pass", "Pass", "PASS", "無", "沒有", "忘記", "123", "abc", "...", "？", "?"]
-        is_evasive = any(kw in clean_text for kw in evasive_keywords) and length < 20
-        is_invalid_answer = length < 5 or is_evasive
+        is_evasive = any(kw in clean_text for kw in evasive_keywords) and ans_len < 20
+        is_invalid_answer = ans_len < 5 or is_evasive
 
-        is_too_brief = length < 30 and not is_invalid_answer
+        is_too_brief = ans_len < 30 and not is_invalid_answer
 
         # Check STAR dimension indicators
         has_action = any(kw in clean_text for kw in ["使用", "採用", "實作", "開發", "優化", "設計", "解決", "透過"])
         has_result = any(kw in clean_text for kw in ["成果", "提升", "縮短", "降低", "獎項", "第", "分", "O(", "效率", "成功"])
 
-        star_score = (1 if length >= 30 else 0) + (1 if has_action else 0) + (1 if has_result else 0)
+        star_score = (1 if ans_len >= 30 else 0) + (1 if has_action else 0) + (1 if has_result else 0)
         requires_socratic_probe = is_invalid_answer or is_too_brief or star_score <= 1
 
         return {
-            "length": length,
+            "length": ans_len,
             "is_invalid_answer": is_invalid_answer,
             "is_too_brief": is_too_brief,
             "has_action": has_action,

@@ -20,7 +20,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   const typewriterDoneRef = useRef(false);
   const spokenQuestionIndexRef = useRef(-1);
 
-  const currentQ = sessionData.questions?.[currentIdx] || sessionData.questions?.[0] || null;
+  const currentQ = sessionData.questions?.[currentIdx] || null;
   const tierInfo = checkSchoolTier(sessionData.targetSchool);
 
   // Initialize SpeechToTextEngine
@@ -206,11 +206,12 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
         ];
 
         const updatedQuestions = [...prev.questions];
-        if (!res.isFinished && finalQuestionText) {
+        const nextQText = finalQuestionText || `請針對您在 ${sessionData.targetMajor || '該科系'} 相關經驗中，最核心的專業技術能力與實作成果進行詳細說明？`;
+        if (!res.isFinished) {
           updatedQuestions.push({
             index: nextTurnNumber,
             phase: nextPhase,
-            text: finalQuestionText,
+            text: nextQText,
             hint: "著重底層原理、問題分析與具體優化成效！"
           });
         }

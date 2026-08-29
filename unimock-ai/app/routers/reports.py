@@ -39,6 +39,10 @@ async def generate_evaluation_report(req: ReportGenerateRequest):
         target_school=session["target_school"],
         target_major=session["target_major"],
         total_turns=len(session["transcript_turns"]),
+        overall_score=eval_res["overall_score"],
+        radar_scores=eval_res["radar_scores"],
+        strengths=eval_res.get("strengths", []),
+        improvements=eval_res.get("improvements", []),
         scoring_evaluation=eval_res["scoring_evaluation_text"],
         overall_strategic_report=eval_res["overall_strategic_report"]
     )
