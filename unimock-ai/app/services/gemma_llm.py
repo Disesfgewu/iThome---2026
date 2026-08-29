@@ -96,9 +96,10 @@ class GemmaLLMClient(BaseChatModel):
         elif lines:
             cleaned = lines[-1]
 
-        # 3. Strip all bracketed prefixes (e.g. 【追問】、【考官】、【問題】、[系統]、[問題]、問：、追問：)
-        prefix_pattern = r'^(【[^】]+】|\[[^\]]+\]|問：|問題：|追問：|考官：|考官發問：|提問：)\s*'
-        cleaned = re.sub(prefix_pattern, '', cleaned).strip()
+        # 3. Strip all bracketed/parenthesized prefixes (e.g. 【追問】、【考官】、[系統]、(Clean and direct).、Alternative:)
+        prefix_pattern = r'^(【[^】]+】|\[[^\]]+\]|\([^)]+\)|Alternative:|Option [A-Z]:|Option:|\w+:|問：|問題：|追問：|考官：|考官發問：|提問：)\s*'
+        cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE).strip()
 
         # 4. Remove all markdown headings, asterisks, backticks, double/single quotes, and bracket quotes
         cleaned = re.sub(r'^#+\s*', '', cleaned)

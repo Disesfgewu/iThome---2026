@@ -131,6 +131,13 @@ const handlePrintPDF = () => {
 
 ![Export Options Modal Demo](images/day26/01_export_modal_demo.png)
 
+### 3.3 國立中山大學 資訊管理學系（完整 3 題實戰與評測報告）
+
+透過 Browser Agent 輸入「**國立中山大學 · 資訊電機學群 · 資訊管理學系**」，完成 3 輪完整 Socratic 問答後產出之頂大戰略評測診斷報告：
+
+![NSYSU IM Report Top](images/day26/03_nsysu_report_top.png)
+![NSYSU IM Report STAR Bottom](images/day26/04_nsysu_report_bottom_star.png)
+
 ---
 
 ## 4. `mockApi.js` 實體刪除與全系統 Real API 徹底對齊
