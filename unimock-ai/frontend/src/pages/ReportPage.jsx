@@ -148,20 +148,33 @@ ${(report.question_diagnoses || []).map((q, idx) => `
         const qText = item.question || `問題 ${turnNum}`;
         const aText = item.answer || '（未記錄回答）';
         const targetMajor = sessionData.targetMajor || '目標學系';
+        const isBiz = ['EMBA', 'MBA', '企管', '資管', '金融', '國企', '財金', '商', '管理', '行銷'].some(k => targetMajor.includes(k));
 
-        let weakness = '回答表達尚屬流暢，建議多加入量化數據指標 (Metric) 與實務細節。';
+        let weakness = '回答表達尚屬流暢，建議多加入量化數據指標與實務決策細節。';
         let improved = '';
 
-        if (turnNum === 1) {
-          weakness = `自我介紹條理尚屬清晰，但建議加強『報考 ${targetMajor} 的核心動機』與『具體專案/競賽數據』的連結。`;
-          improved = `【Situation】在修習 ${targetMajor} 基礎與推動專案實作時；【Task】我致力於探究核心原理並提升關鍵問題排解效率；【Action】我採用模組化設計與結構化測試，克服關鍵瓶頸；【Result】成功提升執行效能 35%，確立深入本系所研究的堅定志向。`;
-        } else if (turnNum === 2 || qText.includes('技術') || qText.includes('演算法') || qText.includes('專案') || aText.includes('SQL') || aText.includes('Python')) {
-          weakness = '技術細節回答明確，但建議補充『演算法/架構 Trade-off 選擇考量』與『最終量化效能指標 (Metric)』。';
-          const techKw = aText.includes('SQLite') ? '資料庫 Index 索引與查詢優化' : (aText.includes('推薦') ? '推薦系統冷啟動與權重過濾演算法' : '核心模組與演算法架構優化');
-          improved = `【Situation】面對專案中『${techKw}』的瓶頸與挑戰；【Task】我需要兼顧推論精準度與資料檢索回應時間；【Action】我採用對比分析，設計兼具過濾演算法與數據緩衝的結構；【Result】成功將回應延遲降低，證明具備優秀的 ${targetMajor} 實務開發潛能。`;
+        if (isBiz) {
+          if (turnNum === 1) {
+            weakness = `自我介紹表達沉著，建議加強說明高階管理視角、資產與風險管理決策，以及報考 ${targetMajor} 的核心動機。`;
+            improved = `「教授您好，我是報考貴所的考生。我任職於金融機構風控主管，主要負責跨國資產負債與法遵決策管理。【Situation / Task】在實務中，我主動引入敏感度分析模型與結構化避險架構，提升資金流動性安全，【Action】成功控制營運風險與資金成本升幅。【Result】我希望能將這些實戰經驗結合 ${targetMajor} 的高階管理與國際金融架構，深化跨國戰略決策能力。」`;
+          } else if (turnNum === 2 || ['避險', '風險', '金融', '管理', '資產', '市場'].some(k => aText.includes(k))) {
+            weakness = '實務經驗述說清晰，但建議進一步補充具體管理決策架構與量化成效指標。';
+            improved = `「教授您好，在面對美聯儲升息與國際供應鏈重組時，【Situation】我主持了外匯避險與流動性壓力測試專案。【Task】透過建立動態敏感度分析模型與風險權重監控流程，【Action】我們成功將資金成本增幅控制在預期範圍內，確保公司財務結構健全。【Result】這項專案證明了我在 ${targetMajor} 領域具備兼具金融數據分析與高階管理決策的實務能力。」`;
+          } else {
+            weakness = `專業觀點極具前瞻性，若能深化 ESG 綠色金融與 AI 自動化審查之落地戰略，說服力將更加卓越。`;
+            improved = `「教授您好，關於未來的學習與研究規劃，【Situation】我將重點聚焦於綠色金融與 ESG 永續放款標準。【Task】我預計透過 AI 智動化風控審查與評估技術導入可行性，引導企業完成數位轉型與國際市場佈局，【Action】建立兼具永續效益與營運效能的雙贏模式，這也是我在 ${targetMajor} 發展的重點目標。【Result】」`;
+          }
         } else {
-          weakness = `回答具備良好說服力，若能進一步連結 ${targetMajor} 最新前瞻趨勢（如 AI 結合企業流程與資安防護），講述深度將更臻完善。`;
-          improved = `【Situation】在思考 ${targetMajor} 之專業應用與前瞻趨勢時；【Task】我著重於如何將前沿技術落地至實際業務情境；【Action】我深入評估技術可行性、資訊安全規範與流程自動化；【Result】展現出兼具資訊技術與戰略思維的跨領域競逐優勢。`;
+          if (turnNum === 1) {
+            weakness = `自我介紹條理尚屬清晰，但建議加強『報考 ${targetMajor} 的核心動機』與『具體專案成果/競賽數據』的連結。`;
+            improved = `「教授您好，在修習專業基礎與推動專案實作時，【Situation】我的核心目標是探究原理並提升關鍵問題排解效率。【Task】我採用模組化設計與結構化測試，克服關鍵效能瓶頸，【Action】成功提升執行效能 35%，獲得良好的使用者回饋。【Result】這段經驗奠定了我深入 ${targetMajor} 探究資安與架構的堅定動機。」`;
+          } else if (turnNum === 2 || qText.includes('技術') || qText.includes('演算法') || qText.includes('專案')) {
+            weakness = '技術細節回答明確，但建議補充『演算法/架構 Trade-off 選擇考量』與『最終量化效能指標』。';
+            improved = `「教授您好，面對專案中核心模組的瓶頸與挑戰，【Situation】我需要兼顧推論精準度與資料檢索回應時間。【Task】我採用對比分析，設計兼具過濾演算法與數據快取緩衝的混合架構，【Action】成功將回應延遲降低至毫秒等級，極大化系統吞吐量。【Result】這證明了我具備優秀的 ${targetMajor} 實務開發與架構優化潛能。」`;
+          } else {
+            weakness = `回答具備良好說服力，若能進一步連結 ${targetMajor} 最新前瞻趨勢（如 AI 結合企業流程與資安防護），講述深度將更臻完善。`;
+            improved = `「教授您好，對於未來的專業應用與前瞻趨勢，【Situation】我著重於如何將大語言模型與 LLM 整合至企業業務流程中。【Task】我深入評估技術可行性、資訊安全規範與流程自動化，【Action】期望能打造兼具高效能與安全性之企業級 AI 系統，展現出 ${targetMajor} 的跨領域競逐優勢。【Result】」`;
+          }
         }
 
         return {

@@ -72,7 +72,7 @@ class GemmaLLMClient(BaseChatModel):
     def clean_markdown_formatting(self, text: str) -> str:
         """
         Removes remaining Markdown artifacts, prefix labels, bullet symbols,
-        Alternative options, bold/italic asterisks, backticks, and surrounding quotes from LLM outputs.
+        English prompt leaks (e.g. Language: Traditional Chinese), Alternative options, backticks, and surrounding quotes from LLM outputs.
         """
         if not text:
             return ""
@@ -81,15 +81,16 @@ class GemmaLLMClient(BaseChatModel):
         cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
         cleaned = re.sub(r'<[^>]+>', '', cleaned)
 
-        # 2. Remove Alternative: / (Clean and direct) / Draft prefixes inline
-        cleaned = re.sub(r'(?i)(Alternative|Option\s*[A-Z\d]?|Draft\s*\d?|Clean\s*and\s*direct)[\:\.\-]*\s*', '', cleaned)
-        cleaned = re.sub(r'\([^)]*Clean\s*and\s*direct[^)]*\)', '', cleaned, flags=re.IGNORECASE)
+        # 2. Remove "Language: ...", "Ask a ...", "Alternative: ...", "(Clean and direct)", "Socratic questioning"
+        cleaned = re.sub(r'(?i)Language\s*:\s*(?:Traditional\s*Chinese|Use\s*traditional\s*Chinese|Chinese)[\.\,\;]*\s*', '', cleaned)
+        cleaned = re.sub(r'(?i)(Alternative|Option\s*[A-Z\d]?|Draft\s*\d?|Clean\s*and\s*direct|Socratic\s*questioning[^\.\,\n]*|Ask\s+a\s+[^\.\,\n]*)[\:\.\-]*\s*', '', cleaned)
+        cleaned = re.sub(r'\([^)]*(?:Clean|direct|Socratic|Language)[^)]*\)', '', cleaned, flags=re.IGNORECASE)
 
         # 3. Extract last non-bullet line if LLM generated bullet points / draft notes
         lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
         candidate_lines = []
         for l in lines:
-            if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|Alternative|分析|筆記|推理)', l, re.IGNORECASE):
+            if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|Alternative|Socratic|Language|分析|筆記|推理)', l, re.IGNORECASE):
                 continue
             if l.startswith('* ') or l.startswith('- ') or l.startswith('+ '):
                 continue
@@ -100,17 +101,22 @@ class GemmaLLMClient(BaseChatModel):
         elif lines:
             cleaned = lines[-1]
 
-        # 4. Strip all bracketed/parenthesized prefixes
+        # 4. Strip leading English clauses (e.g. "In the context of Fed rate hikes...") if followed by Chinese text
+        english_lead_match = re.search(r'^(?:Language\s*:|In the context of|According to|Based on|Socratic|Regarding|Ask a)[^\n\u4e00-\u9fff]*[\,\:\.\-]?\s*(?=[\u4e00-\u9fff])', cleaned, re.IGNORECASE)
+        if english_lead_match:
+            cleaned = cleaned[english_lead_match.end():].strip()
+
+        # 5. Strip all bracketed/parenthesized prefixes
         prefix_pattern = r'^(【[^】]+】|\[[^\]]+\]|\([^)]+\)|Alternative:|Option [A-Z]:|Option:|\w+:|問：|問題：|追問：|考官：|考官發問：|提問：)\s*'
         cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE).strip()
         cleaned = re.sub(prefix_pattern, '', cleaned, flags=re.IGNORECASE).strip()
 
-        # 5. Remove markdown headings, asterisks, backticks, quotes
+        # 6. Remove markdown headings, asterisks, backticks, quotes
         cleaned = re.sub(r'^#+\s*', '', cleaned)
         cleaned = cleaned.replace('*', '').replace('`', '').replace('~', '')
         cleaned = cleaned.replace('"', '').replace("'", '')
 
-        # 6. Strip leading/trailing quote marks
+        # 7. Strip leading/trailing quote marks
         cleaned = re.sub(r'^[「『"“\'`]\s*', '', cleaned)
         cleaned = re.sub(r'\s*[」』"”\'`]$', '', cleaned)
 

@@ -194,25 +194,23 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
         nextPhase = "總結反思與學習潛能";
       }
 
-      setSessionData((prev) => {
-        const updatedHistory = [
-          ...prev.dialogueHistory,
-          {
-            turn: currentIdx + 1,
-            phase: currentQ.phase,
-            question: currentQ.text,
-            answer: candidateAnswer
-          }
-        ];
+      const newTurnItem = {
+        turn: currentIdx + 1,
+        phase: currentQ.phase,
+        question: currentQ.text,
+        answer: candidateAnswer
+      };
+      const updatedHistory = [...(sessionData.dialogueHistory || []), newTurnItem];
 
+      setSessionData((prev) => {
         const updatedQuestions = [...prev.questions];
-        const nextQText = finalQuestionText || `請針對您在 ${sessionData.targetMajor || '該科系'} 相關經驗中，最核心的專業技術能力與實作成果進行詳細說明？`;
+        const nextQText = finalQuestionText || `請針對您在 ${sessionData.targetMajor || '該科系'} 相關經驗中，最核心的專業能力與實作成果進行詳細說明？`;
         if (!res.isFinished) {
           updatedQuestions.push({
             index: nextTurnNumber,
             phase: nextPhase,
             text: nextQText,
-            hint: "著重底層原理、問題分析與具體優化成效！"
+            hint: "著重具體實務、決策考量與優化成效！"
           });
         }
 
@@ -234,11 +232,12 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
           const finalScore = Math.round(reportRes?.overall_score || 75);
           const finalSession = {
             ...sessionData,
+            dialogueHistory: updatedHistory,
             evaluationReport: reportRes,
             date: new Date().toLocaleString('zh-TW', { hour12: false }),
             status: 'COMPLETED',
             score: finalScore,
-            duration: `${Math.max(1, (sessionData.dialogueHistory?.length || 1) * 3)}m ${Math.floor(Math.random() * 40 + 10)}s`,
+            duration: `${Math.max(1, updatedHistory.length * 2)}m ${Math.floor(Math.random() * 40 + 10)}s`,
             roleCategory: tierInfo.isTopTier ? '頂尖前段名校模式' : '一般大學/研究所模式'
           };
           saveSessionToHistory(finalSession);
@@ -247,6 +246,7 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
           console.warn("Report generation error:", err);
         } finally {
           setIsGeneratingReport(false);
+          setIsSubmitting(false);
           onFinishInterview();
         }
       } else {

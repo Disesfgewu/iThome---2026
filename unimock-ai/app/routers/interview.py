@@ -205,6 +205,8 @@ async def submit_user_answer_stream(req: AnswerSubmitRequest):
 
     async def sse_stream_generator():
         accumulated_text = ""
+        buffered_tokens = ""
+        prefix_cleared = False
         try:
             async for token in gemma_client.astream_with_system_prompt(
                 prompt_name="response_generation",
@@ -214,8 +216,17 @@ async def submit_user_answer_stream(req: AnswerSubmitRequest):
                 transcript=safe_transcript
             ):
                 accumulated_text += token
-                chunk_payload = json.dumps({"text": token, "done": False}, ensure_ascii=False)
-                yield f"data: {chunk_payload}\n\n"
+                if not prefix_cleared:
+                    buffered_tokens += token
+                    if len(buffered_tokens) > 30 or any('\u4e00' <= char <= '\u9fff' for char in buffered_tokens):
+                        clean_lead = gemma_client.clean_markdown_formatting(buffered_tokens)
+                        prefix_cleared = True
+                        if clean_lead:
+                            chunk_payload = json.dumps({"text": clean_lead, "done": False}, ensure_ascii=False)
+                            yield f"data: {chunk_payload}\n\n"
+                else:
+                    chunk_payload = json.dumps({"text": token, "done": False}, ensure_ascii=False)
+                    yield f"data: {chunk_payload}\n\n"
         except Exception as e:
             error_payload = json.dumps({"text": f" [流式生成中斷: {str(e)}]", "done": False}, ensure_ascii=False)
             yield f"data: {error_payload}\n\n"
