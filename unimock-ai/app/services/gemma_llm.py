@@ -81,6 +81,21 @@ class GemmaLLMClient(BaseChatModel):
         cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
         cleaned = re.sub(r'<[^>]+>', '', cleaned)
 
+        # 1b. Convert LaTeX math symbols to Unicode equivalents
+        latex_map = {
+            r'$\rightarrow$': '→', r'$\leftarrow$': '←',
+            r'$\Rightarrow$': '⇒', r'$\Leftarrow$': '⇐',
+            r'$\leftrightarrow$': '↔', r'$\uparrow$': '↑', r'$\downarrow$': '↓',
+            r'$\geq$': '≥', r'$\leq$': '≤', r'$\neq$': '≠',
+            r'$\approx$': '≈', r'$\times$': '×', r'$\pm$': '±',
+            r'$\infty$': '∞', r'$\alpha$': 'α', r'$\beta$': 'β',
+            r'$\gamma$': 'γ', r'$\delta$': 'Δ', r'$\sigma$': 'σ', r'$\mu$': 'μ',
+        }
+        for latex, uni in latex_map.items():
+            cleaned = cleaned.replace(latex, uni)
+        # Strip any remaining $...$ inline math wrappers (keep inner content)
+        cleaned = re.sub(r'\$([^$]+)\$', r'\1', cleaned)
+
         # 2. Remove "Language: ...", "Ask a ...", "Deep questioning? Yes.", "Is the format correct? Yes.", "Alternative: ...", "(Clean and direct)"
         cleaned = re.sub(r'(?i)Language\s*:\s*(?:Traditional\s*Chinese|Use\s*traditional\s*Chinese|Chinese)[\.\,\;]*\s*', '', cleaned)
         cleaned = re.sub(r'(?i)(?:Deep questioning|Is the format correct|Socratic questioning)\?\s*(?:Yes|No|OK)[\.\,\;\:]*\s*', '', cleaned)
@@ -118,8 +133,8 @@ class GemmaLLMClient(BaseChatModel):
         cleaned = cleaned.replace('"', '').replace("'", '')
 
         # 7. Strip leading/trailing quote marks
-        cleaned = re.sub(r'^[「『"“\'`]\s*', '', cleaned)
-        cleaned = re.sub(r'\s*[」』"”\'`]$', '', cleaned)
+        cleaned = re.sub(r'^[「『""\'`]\s*', '', cleaned)
+        cleaned = re.sub(r'\s*[」』""\'`]$', '', cleaned)
 
         return cleaned.strip()
 

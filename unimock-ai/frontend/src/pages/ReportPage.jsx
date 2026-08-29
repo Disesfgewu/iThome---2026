@@ -1,6 +1,42 @@
 import React, { useState } from 'react';
 import RadarCanvas from '../components/RadarCanvas';
 
+// Converts LaTeX math symbols and basic markdown into readable text/JSX
+function renderText(text) {
+  if (!text) return '';
+  return String(text)
+    // LaTeX arrows
+    .replace(/\$\\rightarrow\$/g, '→')
+    .replace(/\$\\leftarrow\$/g, '←')
+    .replace(/\$\\Rightarrow\$/g, '⇒')
+    .replace(/\$\\Leftarrow\$/g, '⇐')
+    .replace(/\$\\leftrightarrow\$/g, '↔')
+    .replace(/\$\\uparrow\$/g, '↑')
+    .replace(/\$\\downarrow\$/g, '↓')
+    // LaTeX math operators & symbols
+    .replace(/\$\\geq\$/g, '≥')
+    .replace(/\$\\leq\$/g, '≤')
+    .replace(/\$\\neq\$/g, '≠')
+    .replace(/\$\\approx\$/g, '≈')
+    .replace(/\$\\times\$/g, '×')
+    .replace(/\$\\pm\$/g, '±')
+    .replace(/\$\\infty\$/g, '∞')
+    .replace(/\$\\alpha\$/g, 'α')
+    .replace(/\$\\beta\$/g, 'β')
+    .replace(/\$\\gamma\$/g, 'γ')
+    .replace(/\$\\delta\$/g, 'Δ')
+    .replace(/\$\\sigma\$/g, 'σ')
+    .replace(/\$\\mu\$/g, 'μ')
+    // Strip remaining $...$ inline math wrappers (keep inner content)
+    .replace(/\$([^$]+)\$/g, '$1')
+    // Strip **bold** markdown (keep text)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Strip *italic* markdown
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Strip `code` backticks
+    .replace(/`([^`]+)`/g, '$1');
+}
+
 export default function ReportPage({ sessionData, onReset }) {
   const [openAccordion, setOpenAccordion] = useState(0);
 
@@ -237,7 +273,7 @@ ${(report.question_diagnoses || []).map((q, idx) => `
             執行摘要
           </h3>
           <p class="text-slate-600 text-base leading-relaxed mb-6">
-            {report.overall_feedback}
+            {renderText(report.overall_feedback)}
           </p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-slate-100 pt-4 text-xs font-mono">
             <div>
@@ -355,7 +391,7 @@ ${(report.question_diagnoses || []).map((q, idx) => `
                       AI 弱點分析
                     </h4>
                     <p class="text-sm text-slate-700 leading-relaxed bg-rose-50 border border-rose-200 rounded-lg p-3">
-                      {diag.weakness_analysis}
+                      {renderText(diag.weakness_analysis)}
                     </p>
                   </div>
                 </div>
@@ -367,7 +403,7 @@ ${(report.question_diagnoses || []).map((q, idx) => `
                     高分示範 (STAR 結構重構)
                   </h4>
                   <p class="text-sm text-slate-700 leading-relaxed">
-                    {diag.improved_sample}
+                    {renderText(diag.improved_sample)}
                   </p>
                 </div>
               </div>
