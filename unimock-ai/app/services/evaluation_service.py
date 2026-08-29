@@ -93,7 +93,7 @@ class EvaluationService:
                         f"成功控制營運風險與資金成本升幅。【Result】"
                         f"我希望能將這些實戰經驗結合 {target_major} 的高階管理與國際金融架構，深化跨國戰略決策能力。」"
                     )
-                elif turn_num == 2 or any(kw in a_text for kw in ["避險", "風險", "金融", "管理", "資產", "市場", "專案"]):
+                elif turn_num == 2:
                     weakness = "實務經驗述說清晰，但建議進一步補充具體管理決策架構與量化成效指標。"
                     improved = (
                         f"「教授您好，在面對美聯儲升息與國際供應鏈重組時，【Situation】"

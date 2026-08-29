@@ -72,7 +72,7 @@ class GemmaLLMClient(BaseChatModel):
     def clean_markdown_formatting(self, text: str) -> str:
         """
         Removes remaining Markdown artifacts, prefix labels, bullet symbols,
-        English prompt leaks (e.g. Language: Traditional Chinese), Alternative options, backticks, and surrounding quotes from LLM outputs.
+        English prompt leaks (e.g. Language: Traditional Chinese, Deep questioning? Yes.), Alternative options, backticks, and surrounding quotes from LLM outputs.
         """
         if not text:
             return ""
@@ -81,8 +81,9 @@ class GemmaLLMClient(BaseChatModel):
         cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
         cleaned = re.sub(r'<[^>]+>', '', cleaned)
 
-        # 2. Remove "Language: ...", "Ask a ...", "Alternative: ...", "(Clean and direct)", "Socratic questioning"
+        # 2. Remove "Language: ...", "Ask a ...", "Deep questioning? Yes.", "Is the format correct? Yes.", "Alternative: ...", "(Clean and direct)"
         cleaned = re.sub(r'(?i)Language\s*:\s*(?:Traditional\s*Chinese|Use\s*traditional\s*Chinese|Chinese)[\.\,\;]*\s*', '', cleaned)
+        cleaned = re.sub(r'(?i)(?:Deep questioning|Is the format correct|Socratic questioning)\?\s*(?:Yes|No|OK)[\.\,\;\:]*\s*', '', cleaned)
         cleaned = re.sub(r'(?i)(Alternative|Option\s*[A-Z\d]?|Draft\s*\d?|Clean\s*and\s*direct|Socratic\s*questioning[^\.\,\n]*|Ask\s+a\s+[^\.\,\n]*)[\:\.\-]*\s*', '', cleaned)
         cleaned = re.sub(r'\([^)]*(?:Clean|direct|Socratic|Language)[^)]*\)', '', cleaned, flags=re.IGNORECASE)
 
@@ -90,7 +91,7 @@ class GemmaLLMClient(BaseChatModel):
         lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
         candidate_lines = []
         for l in lines:
-            if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|Alternative|Socratic|Language|分析|筆記|推理)', l, re.IGNORECASE):
+            if re.match(r'^[\*\-\+\d\.]+\s*(Draft|Role|Situation|Task|Action|Result|Option|Alternative|Socratic|Language|Deep|分析|筆記|推理)', l, re.IGNORECASE):
                 continue
             if l.startswith('* ') or l.startswith('- ') or l.startswith('+ '):
                 continue
@@ -101,8 +102,8 @@ class GemmaLLMClient(BaseChatModel):
         elif lines:
             cleaned = lines[-1]
 
-        # 4. Strip leading English clauses (e.g. "In the context of Fed rate hikes...") if followed by Chinese text
-        english_lead_match = re.search(r'^(?:Language\s*:|In the context of|According to|Based on|Socratic|Regarding|Ask a)[^\n\u4e00-\u9fff]*[\,\:\.\-]?\s*(?=[\u4e00-\u9fff])', cleaned, re.IGNORECASE)
+        # 4. Strip leading English clauses (e.g. "Deep questioning? Yes. In the context of...") if followed by Chinese text
+        english_lead_match = re.search(r'^(?:Language\s*:|Deep questioning|Is the format correct|In the context of|According to|Based on|Socratic|Regarding|Ask a)[^\n\u4e00-\u9fff]*[\,\:\.\-]?\s*(?=[\u4e00-\u9fff])', cleaned, re.IGNORECASE)
         if english_lead_match:
             cleaned = cleaned[english_lead_match.end():].strip()
 
