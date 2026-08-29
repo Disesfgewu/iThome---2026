@@ -42,34 +42,75 @@ export default function ReportPage({ sessionData, onReset }) {
 
   const gradeInfo = getGradeInfo(computedOverallScore);
 
-  const handleDownloadMarkdown = () => {
-    const content = `# UniMock AI 模擬面試診斷報告
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
-- **目標學校：** ${sessionData.targetSchool}
-- **目標學群：** ${sessionData.targetGroup}
-- **目標學系：** ${sessionData.targetMajor}
-- **評分結果：** ${computedOverallScore} / 100 (${gradeInfo.grade} ${gradeInfo.label})
-  - STAR 邏輯條理性: ${scores.logic_structure} / 10
-  - 科系專業契合度: ${scores.major_relevance} / 10
-  - 表達清晰度: ${scores.communication_clarity} / 10
-  - 臨場應變力: ${scores.adaptability} / 10
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
 
-## 綜合點評
-${report.overall_feedback}
+  const generateMarkdownContent = () => {
+    return `# UniMock AI 模擬面試戰略診斷報告
+
+- **目標學校：** ${sessionData.targetSchool || '未指定'}
+- **目標學群：** ${sessionData.targetGroup || '未指定'}
+- **目標系所：** ${sessionData.targetMajor || '未指定'}
+- **總體評分：** ${computedOverallScore} / 100 (${gradeInfo.grade} - ${gradeInfo.label})
+
+## 核心維度分析
+- **STAR 邏輯條理性：** ${scores.logic_structure} / 10
+- **專業契合度：** ${scores.major_relevance} / 10
+- **表達清晰度：** ${scores.communication_clarity} / 10
+- **臨場應變力：** ${scores.adaptability} / 10
+
+## 綜合點評與戰略備戰報告
+${report.overall_feedback || report.overall_strategic_report || '尚無點評資訊'}
 
 ## 關鍵優勢 (Strengths)
-${report.strengths.map((s) => `- ${s}`).join('\n')}
+${(report.strengths || []).map((s) => `- ${s}`).join('\n')}
 
-## 建議改進方向 (Improvements)
-${report.improvements.map((i) => `- ${i}`).join('\n')}
+## 建議改進方向 (Improvements & Targets)
+${(report.improvements || []).map((i) => `- ${i}`).join('\n')}
+
+## 逐題對答覆盤與 STAR 重構建議
+${(report.question_diagnoses || []).map((q, idx) => `
+### Turn ${q.turn_index || idx + 1}: ${q.question}
+- **學生原始回答：** ${q.original_answer}
+- **AI 弱點分析：** ${q.weakness_analysis}
+- **高分 STAR 示範：** ${q.improved_sample}
+`).join('\n')}
 `;
+  };
 
+  const handleDownloadMarkdown = () => {
+    const content = generateMarkdownContent();
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `UniMock_Report_${sessionData.targetSchool}_${sessionData.targetMajor}.md`;
+    link.download = `UniMock_Report_${sessionData.targetSchool || 'School'}_${sessionData.targetMajor || 'Major'}.md`;
     link.click();
+    setShowExportModal(false);
+    showToast('已成功下載 Markdown 診斷報告！');
+  };
+
+  const handleCopyMarkdown = () => {
+    const content = generateMarkdownContent();
+    navigator.clipboard.writeText(content).then(() => {
+      setShowExportModal(false);
+      showToast('已將完整 Markdown 診斷報告複製至剪貼簿！');
+    }).catch(err => {
+      console.error('Copy failed:', err);
+      showToast('複製失敗，請手動選擇複製。');
+    });
+  };
+
+  const handlePrintPDF = () => {
+    setShowExportModal(false);
+    setTimeout(() => {
+      window.print();
+    }, 300);
   };
 
   const strengths = (report.strengths && report.strengths.length > 0)
@@ -117,11 +158,11 @@ ${report.improvements.map((i) => `- ${i}`).join('\n')}
         </div>
         <div class="flex gap-3">
           <button
-            onClick={handleDownloadMarkdown}
-            class="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-xs"
+            onClick={() => setShowExportModal(true)}
+            class="px-4 py-2.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
           >
             <span class="material-symbols-outlined text-lg">download</span>
-            下載 Markdown / PDF 診斷書
+            匯出 / 下載診斷書 (Markdown / PDF)
           </button>
         </div>
       </div>
@@ -289,15 +330,102 @@ ${report.improvements.map((i) => `- ${i}`).join('\n')}
         ))}
       </div>
 
-      {/* Reset CTA */}
-      <div class="mt-8 pt-6 border-t border-slate-200 flex justify-end">
-        <button
-          onClick={onReset}
-          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-colors"
-        >
-          重新開始另一輪練習
-        </button>
-      </div>
+      {/* Export Options Modal */}
+      {showExportModal && (
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 no-print">
+          <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-indigo-600 font-bold text-lg">
+                <span class="material-symbols-outlined text-2xl">ios_share</span>
+                選擇診斷報告匯出方式
+              </div>
+              <button
+                onClick={() => setShowExportModal(false)}
+                class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <p class="text-xs text-slate-500 font-medium leading-relaxed">
+              請選擇您希望儲存或備份 UniMock AI 戰略評測診斷報告的形式：
+            </p>
+
+            <div class="space-y-3">
+              {/* Option 1: Markdown Download */}
+              <button
+                onClick={handleDownloadMarkdown}
+                class="w-full p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 flex items-center gap-4 transition-all text-left group cursor-pointer"
+              >
+                <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xl group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined">markdown</span>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">
+                    下載完整 Markdown 檔 (.md)
+                  </h4>
+                  <p class="text-xs text-slate-500 font-mono mt-0.5">
+                    包含問答逐字稿、雷達指標與 STAR 重構建議
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2: Print PDF */}
+              <button
+                onClick={handlePrintPDF}
+                class="w-full p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 flex items-center gap-4 transition-all text-left group cursor-pointer"
+              >
+                <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined">print</span>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">
+                    友善列印 / 另存 PDF 診斷書
+                  </h4>
+                  <p class="text-xs text-slate-500 font-mono mt-0.5">
+                    觸發瀏覽器原生存列印模式，優化排版版面
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 3: Copy Markdown to Clipboard */}
+              <button
+                onClick={handleCopyMarkdown}
+                class="w-full p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 flex items-center gap-4 transition-all text-left group cursor-pointer"
+              >
+                <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xl group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined">content_copy</span>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">
+                    複製完整 Markdown 內容
+                  </h4>
+                  <p class="text-xs text-slate-500 font-mono mt-0.5">
+                    一鍵複製純文字格式，方便貼至筆記或備審資料
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button
+                onClick={() => setShowExportModal(false)}
+                class="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-colors"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div class="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-bounce font-medium text-sm no-print">
+          <span class="material-symbols-outlined text-emerald-400 text-xl">check_circle</span>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

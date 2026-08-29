@@ -60,3 +60,19 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Print / PDF Export Styles */
+@media print {
+  header, nav, button, .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .max-w-7xl {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+}
+
