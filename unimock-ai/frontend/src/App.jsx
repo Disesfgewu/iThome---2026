@@ -4,7 +4,7 @@ import SetupPage from './pages/SetupPage';
 import InterviewPage from './pages/InterviewPage';
 import ReportPage from './pages/ReportPage';
 import HistoryPage from './pages/HistoryPage';
-import { mockInitialSessionData } from './api/mockApi';
+import { initialSessionData as mockInitialSessionData } from './api/realApi';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('setup');
@@ -59,7 +59,12 @@ export default function App() {
 
         {activeTab === 'history' && (
           <HistoryPage
-            onViewReport={() => setActiveTab('report')}
+            onViewReport={(selectedSession) => {
+              if (selectedSession && selectedSession.evaluationReport) {
+                setSessionData(selectedSession);
+              }
+              setActiveTab('report');
+            }}
           />
         )}
       </main>

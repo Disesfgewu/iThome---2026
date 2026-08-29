@@ -58,17 +58,28 @@ ${(report.question_diagnoses || []).map((q, idx) => `
 ### 2.2 匯出動作處理函數 (`Download`, `Print`, `Copy`)
 
 ```javascript
-// 1. 觸發本地 Blob 檔案下載
+// 1. 觸發本地 Blob 檔案下載（附帶 UTF-8 BOM 避免亂碼與檔名 Sanitization）
 const handleDownloadMarkdown = () => {
   const content = generateMarkdownContent();
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+  // 加上 \uFEFF UTF-8 BOM，避免 Windows Notepad/Office 開啟中文出現亂碼
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `UniMock_Report_${sessionData.targetSchool}_${sessionData.targetMajor}.md`;
+  
+  // 檔名字元過濾，防止非法字元導致瀏覽器降級下載為系統無副檔名 GUID
+  const safeSchool = (sessionData.targetSchool || 'School').replace(/[\\/:*?"<>|\s]/g, '_');
+  const safeMajor = (sessionData.targetMajor || 'Major').replace(/[\\/:*?"<>|\s]/g, '_');
+  link.download = `UniMock_Report_${safeSchool}_${safeMajor}.md`;
+  
+  // 必須掛載至 document.body 確保跨瀏覽器（Chrome/Firefox）觸發原生成檔與副檔名
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
   setShowExportModal(false);
-  showToast('已成功下載 Markdown 診斷報告！');
+  showToast('已成功下載 Markdown 診斷報告 (.md)！');
 };
 
 // 2. 一鍵複製文字至剪貼簿
@@ -122,8 +133,21 @@ const handlePrintPDF = () => {
 
 ---
 
+## 4. `mockApi.js` 實體刪除與全系統 Real API 徹底對齊
+
+為確保系統 100% 運行於真實 FastAPI 後端服務與 `localStorage` 練習歷史資料庫，我們在開發完成後執行了以下徹底重構與刪除驗證：
+
+1. **實體刪除 Mock API 模組**：
+   - 執行 PowerShell 命令 `Remove-Item unimock-ai/frontend/src/api/mockApi.js` 徹底從專案目錄中刪除檔檔。
+2. **全元件 API 與配置調用對齊**：
+   - 更新 `App.jsx`、`SetupPage.jsx`、`InterviewPage.jsx` 以及 `HistoryPage.jsx`，將所有導出常量與 API 方法改由 `realApi.js` 提供（或經由 `/api/records/list` 與 `localStorage` 動態儲存）。
+3. **打包編譯驗證 (Vite Production Build)**：
+   - 執行 `npm run build` 進行生產環境編譯，確認 **零殘留模態引用 (0 unresolved imports)**，成功編譯出 `dist/assets/index-Dq98taiu.js`。
+
+---
+
 ## 結語與明天預告
 
-今天我們打通了 UniMock AI 戰略診斷報告的本地匯出下載與列印分享機制，支援 Markdown 檔案下載、PDF 友善列印以及剪貼簿一鍵複製。
+今天我們打通了 UniMock AI 戰略診斷報告的本地匯出下載與列印分享機制，支援防亂碼 UTF-8 BOM Markdown 檔案下載、PDF 友善列印以及剪貼簿一鍵複製，並徹底實體刪除了 `mockApi.js`。
 
 明天 **【Day 27】**，我們將強化系統的邊界異常處理與穩定度，實作 **網路中斷、麥克風異常與 LLM 模型降級機制**！

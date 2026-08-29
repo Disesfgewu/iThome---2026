@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { uploadResumeApi, startInterviewApi } from '../api/realApi';
-import { mockDepartmentGroups, checkSchoolTier } from '../api/mockApi';
+import { departmentGroups as mockDepartmentGroups, checkSchoolTier } from '../api/realApi';
 
 export default function SetupPage({ sessionData, setSessionData, onStartInterview }) {
   const [targetSchool, setTargetSchool] = useState(sessionData.targetSchool || '國立臺灣大學');

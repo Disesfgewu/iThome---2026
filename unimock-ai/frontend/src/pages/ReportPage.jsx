@@ -85,14 +85,25 @@ ${(report.question_diagnoses || []).map((q, idx) => `
 
   const handleDownloadMarkdown = () => {
     const content = generateMarkdownContent();
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+    // Add UTF-8 BOM (\uFEFF) to prevent Traditional Chinese text from becoming garbled in Windows/Office
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `UniMock_Report_${sessionData.targetSchool || 'School'}_${sessionData.targetMajor || 'Major'}.md`;
+    
+    // Sanitize filename to prevent invalid characters or random system GUID downloads
+    const safeSchool = (sessionData.targetSchool || 'School').replace(/[\\/:*?"<>|\s]/g, '_');
+    const safeMajor = (sessionData.targetMajor || 'Major').replace(/[\\/:*?"<>|\s]/g, '_');
+    link.download = `UniMock_Report_${safeSchool}_${safeMajor}.md`;
+    
+    // Must append link to document.body for reliable download across browsers
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
     setShowExportModal(false);
-    showToast('已成功下載 Markdown 診斷報告！');
+    showToast('已成功下載 Markdown 診斷報告 (.md)！');
   };
 
   const handleCopyMarkdown = () => {

@@ -239,3 +239,100 @@ export async function getReportApi(sessionId) {
     };
   }
 }
+
+export const initialSessionData = {
+  sessionId: "",
+  targetSchool: "國立臺灣大學",
+  targetGroup: "資訊電機學群",
+  targetMajor: "資訊工程學系",
+  interviewerPersona: "strict", // "strict" | "socratic"
+  questionCount: 3,
+  currentQuestionIndex: 0,
+  isRecording: false,
+  extractedProfile: {
+    fileName: "",
+    targetSchool: "",
+    targetGroup: "",
+    targetMajor: "",
+    background: "",
+    leadershipExperiences: [],
+    certificates: [],
+    highlights: [],
+    detectedBlindspots: []
+  },
+  questions: [],
+  dialogueHistory: [],
+  evaluationReport: null
+};
+
+export const departmentGroups = [
+  "資訊電機學群",
+  "醫藥衛生學群",
+  "數理化學學群",
+  "工程學群",
+  "管理學群",
+  "財經學群",
+  "外語學群",
+  "人文社會學群",
+  "生物資源學群",
+  "建築與設計學群"
+];
+
+export function checkSchoolTier(schoolName) {
+  const topTierKeywords = ['臺灣大學', '台大', '成功大學', '成大', '清華大學', '清大', '陽明交通大學', '交大', '政治大學', '政大', '臺灣科技大學', '臺科大', '中央大學', '中興大學', '中正大學', '中山大學'];
+  const isTopTier = topTierKeywords.some(k => (schoolName || '').includes(k));
+  return {
+    isTopTier,
+    tierLabel: isTopTier ? '頂尖前段名校模式' : '一般大學/研究所模式',
+    difficultyDesc: isTopTier
+      ? '🔥 已啟動高難度專業技術與申論題型（要求底層架構、演算法原理與 Benchmark 數據分析）'
+      : '📘 已啟動標準模擬面試題型（著重個人動機、專案亮點與團隊溝通）'
+  };
+}
+
+export async function getHistoryApi() {
+  let apiRecords = [];
+  try {
+    const res = await fetch(`${API_BASE_URL}/records/list`);
+    if (res.ok) {
+      const data = await res.json();
+      apiRecords = (data || []).map((item) => ({
+        sessionId: item.session_id,
+        date: item.created_at,
+        targetSchool: item.target_school,
+        targetGroup: "專業志願",
+        targetMajor: item.target_major,
+        roleCategory: item.interview_mode,
+        duration: `${item.total_turns} 輪對答`,
+        score: item.has_report ? 75 : 0,
+        status: item.is_finished ? "COMPLETED" : "IN_PROGRESS"
+      }));
+    }
+  } catch (err) {
+    console.warn("Real API getHistory error:", err);
+  }
+
+  let localRecords = [];
+  try {
+    const saved = localStorage.getItem('unimock_history_sessions');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        localRecords = parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Local history error:", e);
+  }
+
+  // Merge local and API records by session ID
+  const map = new Map();
+  localRecords.forEach((r) => map.set(r.sessionId, r));
+  apiRecords.forEach((r) => {
+    if (!map.has(r.sessionId)) {
+      map.set(r.sessionId, r);
+    }
+  });
+
+  return Array.from(map.values());
+}

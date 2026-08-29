@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { getHistoryApi } from '../api/mockApi';
+import { getHistoryApi } from '../api/realApi';
 
 export default function HistoryPage({ onViewReport }) {
   const [sessions, setSessions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    const saved = localStorage.getItem('unimock_history_sessions');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to parse history sessions from localStorage:", e);
+      }
+    }
     getHistoryApi().then((data) => setSessions(data));
   }, []);
 
@@ -95,8 +107,8 @@ export default function HistoryPage({ onViewReport }) {
                   </td>
                   <td class="py-4 px-6 text-right">
                     <button
-                      onClick={onViewReport}
-                      class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-2xs"
+                      onClick={() => onViewReport(item)}
+                      class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-2xs cursor-pointer"
                     >
                       查看報告
                     </button>
