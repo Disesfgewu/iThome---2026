@@ -24,7 +24,8 @@ async def generate_evaluation_report(req: ReportGenerateRequest):
         target_school=session["target_school"],
         target_major=session["target_major"],
         candidate_profile_text=profile_text,
-        transcript_text=transcript
+        transcript_text=transcript,
+        transcript_turns=session.get("transcript_turns", [])
     )
 
     # Save to Session Repository
@@ -43,6 +44,7 @@ async def generate_evaluation_report(req: ReportGenerateRequest):
         radar_scores=eval_res["radar_scores"],
         strengths=eval_res.get("strengths", []),
         improvements=eval_res.get("improvements", []),
+        question_diagnoses=eval_res.get("question_diagnoses", []),
         scoring_evaluation=eval_res["scoring_evaluation_text"],
         overall_strategic_report=eval_res["overall_strategic_report"]
     )

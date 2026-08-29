@@ -143,13 +143,35 @@ ${(report.question_diagnoses || []).map((q, idx) => `
   const dialogueHistory = sessionData.dialogueHistory || [];
   const questionDiagnoses = (report.question_diagnoses && report.question_diagnoses.length > 0)
     ? report.question_diagnoses
-    : (dialogueHistory.length > 0 ? dialogueHistory.map((item, idx) => ({
-        turn_index: item.turn || (idx + 1),
-        question: item.question || `問題 ${idx + 1}`,
-        original_answer: item.answer || '（未記錄回答）',
-        weakness_analysis: '回答表達尚屬流暢，建議多加入量化數據指標 (Metric) 與實務除錯專案細節 (STAR Action)。',
-        improved_sample: `【Situation】在參與專案/研究實作時；【Task】我負責核心邏輯設計與問題排除；【Action】我採用結構化分析與模組化測試；【Result】成功提升執行效率並圓滿達成專業目標。`
-      })) : [
+    : (dialogueHistory.length > 0 ? dialogueHistory.map((item, idx) => {
+        const turnNum = item.turn || (idx + 1);
+        const qText = item.question || `問題 ${turnNum}`;
+        const aText = item.answer || '（未記錄回答）';
+        const targetMajor = sessionData.targetMajor || '目標學系';
+
+        let weakness = '回答表達尚屬流暢，建議多加入量化數據指標 (Metric) 與實務細節。';
+        let improved = '';
+
+        if (turnNum === 1) {
+          weakness = `自我介紹條理尚屬清晰，但建議加強『報考 ${targetMajor} 的核心動機』與『具體專案/競賽數據』的連結。`;
+          improved = `【Situation】在修習 ${targetMajor} 基礎與推動專案實作時；【Task】我致力於探究核心原理並提升關鍵問題排解效率；【Action】我採用模組化設計與結構化測試，克服關鍵瓶頸；【Result】成功提升執行效能 35%，確立深入本系所研究的堅定志向。`;
+        } else if (turnNum === 2 || qText.includes('技術') || qText.includes('演算法') || qText.includes('專案') || aText.includes('SQL') || aText.includes('Python')) {
+          weakness = '技術細節回答明確，但建議補充『演算法/架構 Trade-off 選擇考量』與『最終量化效能指標 (Metric)』。';
+          const techKw = aText.includes('SQLite') ? '資料庫 Index 索引與查詢優化' : (aText.includes('推薦') ? '推薦系統冷啟動與權重過濾演算法' : '核心模組與演算法架構優化');
+          improved = `【Situation】面對專案中『${techKw}』的瓶頸與挑戰；【Task】我需要兼顧推論精準度與資料檢索回應時間；【Action】我採用對比分析，設計兼具過濾演算法與數據緩衝的結構；【Result】成功將回應延遲降低，證明具備優秀的 ${targetMajor} 實務開發潛能。`;
+        } else {
+          weakness = `回答具備良好說服力，若能進一步連結 ${targetMajor} 最新前瞻趨勢（如 AI 結合企業流程與資安防護），講述深度將更臻完善。`;
+          improved = `【Situation】在思考 ${targetMajor} 之專業應用與前瞻趨勢時；【Task】我著重於如何將前沿技術落地至實際業務情境；【Action】我深入評估技術可行性、資訊安全規範與流程自動化；【Result】展現出兼具資訊技術與戰略思維的跨領域競逐優勢。`;
+        }
+
+        return {
+          turn_index: turnNum,
+          question: qText,
+          original_answer: aText,
+          weakness_analysis: weakness,
+          improved_sample: improved
+        };
+      }) : [
         {
           turn_index: 1,
           question: `歡迎來到 ${sessionData.targetSchool || '目標學校'} ${sessionData.targetMajor || '目標學系'} 的面試現場。請您先進行自我介紹與報考動機說明？`,

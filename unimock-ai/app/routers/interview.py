@@ -114,10 +114,13 @@ async def submit_user_answer(req: AnswerSubmitRequest):
 
     # 6. Generate follow-up response / question via Gemma-4-31B with stage & socratic instructions
     user_prompt_with_instructions = (
-        f"{stage_instruction}\n"
-        f"{socratic_instruction}\n"
+        f"【面試階段重點】：{stage_instruction}\n"
+        f"【蘇格拉底追問指引】：{socratic_instruction}\n"
         f"【學生最新回答】：{req.user_answer}\n\n"
-        f"請根據以上學生回答，直接輸出一道繁體中文追問或鼓勵語句，不要任何推理說明文字。"
+        f"【最高發問規範】：\n"
+        f"1. 必須嚴格針對學生剛才回答中提及的『具體技術關鍵字、專案成果或學習經驗』進行精準銜接追問（絕不文不對題）。\n"
+        f"2. 嚴禁重複先前已問過或學生已說明的問題。\n"
+        f"3. 僅直接輸出唯一一句繁體中文發問，不要任何 Alternative:、Option: 或草稿前綴！"
     )
 
     next_question = await gemma_client.invoke_with_system_prompt(
@@ -191,10 +194,13 @@ async def submit_user_answer_stream(req: AnswerSubmitRequest):
 
     # 6. Build prompt with instructions
     user_prompt_with_instructions = (
-        f"{stage_instruction}\n"
-        f"{socratic_instruction}\n"
+        f"【面試階段重點】：{stage_instruction}\n"
+        f"【蘇格拉底追問指引】：{socratic_instruction}\n"
         f"【學生最新回答】：{req.user_answer}\n\n"
-        f"請根據以上學生回答，直接輸出一道繁體中文追問或鼓勵語句，不要任何推理說明文字。"
+        f"【最高發問規範】：\n"
+        f"1. 必須嚴格針對學生剛才回答中提及的『具體技術關鍵字、專案成果或學習經驗』進行精準銜接追問（絕不文不對題）。\n"
+        f"2. 嚴禁重複先前已問過或學生已說明的問題。\n"
+        f"3. 僅直接輸出唯一一句繁體中文發問，不要任何 Alternative:、Option: 或草稿前綴！"
     )
 
     async def sse_stream_generator():

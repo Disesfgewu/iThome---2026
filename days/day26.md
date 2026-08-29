@@ -140,18 +140,29 @@ const handlePrintPDF = () => {
 
 ---
 
-## 4. `mockApi.js` 實體刪除與全系統 Real API 徹底對齊
+## 4. `mockApi.js` 實體刪除與動態評測修復
 
-為確保系統 100% 運行於真實 FastAPI 後端服務與 `localStorage` 練習歷史資料庫，我們在開發完成後執行了以下徹底重構與刪除驗證：
+為確保系統 100% 運行於真實 FastAPI 後端服務與 `localStorage` 練習歷史資料庫，我們執行了以下重構與驗證：
 
 1. **實體刪除 Mock API 模組**：
-   - 執行 PowerShell 命令 `Remove-Item unimock-ai/frontend/src/api/mockApi.js` 徹底從專案目錄中刪除檔檔。
-2. **全元件 API 與配置調用對齊**：
-   - 更新 `App.jsx`、`SetupPage.jsx`、`InterviewPage.jsx` 以及 `HistoryPage.jsx`，將所有導出常量與 API 方法改由 `realApi.js` 提供（或經由 `/api/records/list` 與 `localStorage` 動態儲存）。
-3. **打包編譯驗證 (Vite Production Build)**：
-   - 執行 `npm run build` 進行生產環境編譯，確認 **零殘留模態引用 (0 unresolved imports)**，成功編譯出 `dist/assets/index-Dq98taiu.js`。
+   - 執行 PowerShell 命令 `Remove-Item unimock-ai/frontend/src/api/mockApi.js` 徹底從專案目錄中刪除檔案。
+2. **追問語境對齊與 Alternative 前綴清洗 (Prompt & Regex Guard)**：
+   - 更新 `response_generation.md` 與 `interview.py`，加入「必須嚴格針對學生剛才回答中提及之具體技術關鍵字（絕不文不對題）」與「嚴禁重複先前問題」之約束。
+   - 於 `gemma_llm.py` 中強化 `clean_markdown_formatting`，徹底清洗 `Alternative:`、`Option:`、`(Clean and direct)` 等 LLM 前綴遺留物。
+3. **動態逐題 STAR 高分示範生成 (Dynamic Turn Diagnoses Engine)**：
+   - 於 `evaluation_service.py` 中新增 `generate_turn_diagnoses`，並同步更新 `ReportPage.jsx` 映射邏輯。
+   - 針對 Turn 1（自我介紹與動機）、Turn 2（技術/專案細節如 SQLite / 協同過濾）、Turn 3（前瞻趨勢與資安）動態產出個別專屬的 STAR（Situation / Task / Action / Result）重構示範與 AI 弱點診斷，解決先前每題示範內容重複之問題。
+4. **打包編譯驗證 (Vite Production Build)**：
+   - 執行 `npm run build` 進行生產環境編譯，確認 **零殘留模態引用 (0 unresolved imports)**，成功編譯出 `dist/assets/index-DdnvasDb.js`。
 
 ---
+
+## 5. 本日總結與下一步預告
+
+在 Day 26 中，我們成功打造了 UniMock AI 的多格式戰略報告匯出機制（防亂碼 Markdown / PDF 友善列印 / 剪貼簿複製）、修正了歷次練習歷史紀錄與報告間的一致性綁定，並完成 `mockApi.js` 的實體刪除與後端 LLM 追問/STAR 診斷機制的動態強化。
+
+在下一階段（Day 27），我們將邁向：
+**【Day 27】邊界與例外處理：網路中斷、麥克風異常與模型降級機制**。
 
 ## 結語與明天預告
 

@@ -55,6 +55,7 @@ class ReportGenerateResponse(BaseModel):
     radar_scores: Dict[str, float] = Field(default_factory=dict)
     strengths: List[str] = Field(default_factory=list)
     improvements: List[str] = Field(default_factory=list)
+    question_diagnoses: List[Dict[str, Any]] = Field(default_factory=list)
     scoring_evaluation: str
     overall_strategic_report: str
 
