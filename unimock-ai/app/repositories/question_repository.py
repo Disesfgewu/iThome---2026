@@ -113,6 +113,9 @@ class QuestionRepository:
             dot_product = sum(a * b for a, b in zip(query_vec, doc_vec))
             scored_questions.append((dot_product, dict(q)))
 
+        if not scored_questions:
+            return [dict(q) for q in candidates[:top_k]]
+
         scored_questions.sort(key=lambda x: x[0], reverse=True)
         return [q for score, q in scored_questions[:top_k]]
 

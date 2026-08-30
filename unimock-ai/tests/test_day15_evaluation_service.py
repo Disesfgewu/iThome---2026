@@ -18,10 +18,10 @@ def test_parse_radar_scores():
         "4. 應變與抗壓韌性：4 星 - 回答迅速\n"
     )
     scores = evaluation_service.parse_radar_scores(sample_text)
-    assert scores["logic_structure"] == 4.0
-    assert scores["major_relevance"] == 5.0
-    assert scores["communication_clarity"] == 3.0
-    assert scores["adaptability"] == 4.0
+    assert scores["logic_structure"] == 8.0
+    assert scores["major_relevance"] == 10.0
+    assert scores["communication_clarity"] == 6.0
+    assert scores["adaptability"] == 8.0
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

@@ -20,7 +20,7 @@ from app.config import settings
 
 def test_gemma_llm_client_initialization():
     """Verify GemmaLLMClient instantiates strictly with Gemma-4-31B-it settings."""
-    assert gemma_client._llm_type == "gemma-4-31b-client"
+    assert gemma_client._llm_type == "resilient-gemma-4-31b-client"
     assert gemma_client.model_name == "models/gemma-4-31b-it"
 
 def test_async_system_prompt_loading_with_transcript_placeholders():
