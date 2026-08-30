@@ -121,7 +121,7 @@ const handlePrintPDF = () => {
 
 ## 3. 瀏覽器 Agent 實機自動化測試與驗證
 
-我們透過 **Browser Subagent** 進行真實瀏覽器操作測試，驗證研究所志願選擇、面試問答、評測報告產出與匯出彈窗功能：
+我們透過 **Browser Subagent** 進行真實瀏覽器操作測試，驗證研究所志願選擇（輔仁大學 金融與國際企業學研究所 EMBA 在職碩士專班）、面試問答、評測報告產出與匯出彈窗功能：
 
 ### 3.1 報告頁面完整呈現
 
@@ -131,35 +131,38 @@ const handlePrintPDF = () => {
 
 ![Export Options Modal Demo](images/day26/01_export_modal_demo.png)
 
-### 3.3 國立中山大學 資訊管理學系（完整 3 題實戰與評測報告）
+### 3.3 輔仁大學 金融與國際企業學研究所 EMBA（完整 3 題實戰與評測報告）
 
-透過 Browser Agent 輸入「**國立中山大學 · 資訊電機學群 · 資訊管理學系**」，完成 3 輪完整 Socratic 問答後產出之頂大戰略評測診斷報告：
+透過 Browser Agent 輸入「**輔仁大學 · 財經學群 · 金融與國際企業學研究所 EMBA 在職碩士專班**」，完成 3 輪完整 Socratic 問答後產出之頂大戰略評測診斷報告：
 
-![NSYSU IM Report Top](images/day26/03_nsysu_report_top.png)
-![NSYSU IM Report STAR Bottom](images/day26/04_nsysu_report_bottom_star.png)
+![FJCU EMBA Report Top](images/day26/03_nsysu_report_top.png)
+![FJCU EMBA Report STAR Bottom](images/day26/04_nsysu_report_bottom_star.png)
 
 ---
 
-## 4. `mockApi.js` 實體刪除與動態評測修復
+## 4. `mockApi.js` 實體刪除與動態評測／格式化修復
 
 為確保系統 100% 運行於真實 FastAPI 後端服務與 `localStorage` 練習歷史資料庫，我們執行了以下重構與驗證：
 
 1. **實體刪除 Mock API 模組**：
    - 執行 PowerShell 命令 `Remove-Item unimock-ai/frontend/src/api/mockApi.js` 徹底從專案目錄中刪除檔案。
-2. **追問語境對齊與 Alternative 前綴清洗 (Prompt & Regex Guard)**：
-   - 更新 `response_generation.md` 與 `interview.py`，加入「必須嚴格針對學生剛才回答中提及之具體技術關鍵字（絕不文不對題）」與「嚴禁重複先前問題」之約束。
-   - 於 `gemma_llm.py` 中強化 `clean_markdown_formatting`，徹底清洗 `Alternative:`、`Option:`、`(Clean and direct)` 等 LLM 前綴遺留物。
-3. **動態逐題 STAR 高分示範生成 (Dynamic Turn Diagnoses Engine)**：
-   - 於 `evaluation_service.py` 中新增 `generate_turn_diagnoses`，並同步更新 `ReportPage.jsx` 映射邏輯。
-   - 針對 Turn 1（自我介紹與動機）、Turn 2（技術/專案細節如 SQLite / 協同過濾）、Turn 3（前瞻趨勢與資安）動態產出個別專屬的 STAR（Situation / Task / Action / Result）重構示範與 AI 弱點診斷，解決先前每題示範內容重複之問題。
-4. **打包編譯驗證 (Vite Production Build)**：
-   - 執行 `npm run build` 進行生產環境編譯，確認 **零殘留模態引用 (0 unresolved imports)**，成功編譯出 `dist/assets/index-DdnvasDb.js`。
+2. **追問語境對齊與英文標籤清洗 (Prompt & SSE Stream Interceptor)**：
+   - 更新 `response_generation.md` 與 `interview.py`，加入「必須嚴格針對學生剛才回答中提及之具體關鍵字」與「嚴禁重複先前問題」之約束。
+   - 於 `interview.py` 中實作 **SSE 流式前綴過濾器**，並於 `gemma_llm.py` 中強化 `clean_markdown_formatting`，徹底過濾 `Language: Traditional Chinese`、`Deep questioning? Yes.`、`Is the format correct? Yes.` 等模型內部思考標籤。
+3. **無標籤自然口語高分示範 (Label-free Spoken STAR Demonstration)**：
+   - 重構 `evaluation_service.py` 中的 `generate_turn_diagnoses` 與 `ReportPage.jsx` 的 fallback 機制。
+   - 徹底移除 `【Situation】`、`【Task】`、`【Action】`、`【Result】` 方括號標籤，改為自然流暢的口述回答段落。
+   - 修正 Turn 3 條件分支邏輯，確保 Turn 1（自我介紹）、Turn 2（避險與壓力測試）、Turn 3（ESG/綠色金融/AI轉型）皆具備獨立專屬的弱點診斷與高分示範。
+4. **LaTeX 數學符號與 Markdown 解析器 (`renderText`)**：
+   - 於 `ReportPage.jsx` 與 `gemma_llm.py` 加入 LaTeX 符號解析與轉換（如 `$\rightarrow$` 轉為 Unicode `→`），確保報告頁面中的分數評語（如 `A- → A`）呈現完美格式。
+5. **打包編譯驗證 (Vite Production Build)**：
+   - 執行 `npm run build` 進行生產環境編譯，確認零錯誤並成功產出。
 
 ---
 
 ## 5. 本日總結與下一步預告
 
-在 Day 26 中，我們成功打造了 UniMock AI 的多格式戰略報告匯出機制（防亂碼 Markdown / PDF 友善列印 / 剪貼簿複製）、修正了歷次練習歷史紀錄與報告間的一致性綁定，並完成 `mockApi.js` 的實體刪除與後端 LLM 追問/STAR 診斷機制的動態強化。
+在 Day 26 中，我們成功打造了 UniMock AI 的多格式戰略報告匯出機制（防亂碼 Markdown / PDF 友善列印 / 剪貼簿複製）、修正了歷次練習歷史紀錄與報告間的一致性綁定，並完成 `mockApi.js` 的實體刪除、LLM 英文洩漏清洗與 STAR 口語化無標籤解構修復。
 
 在下一階段（Day 27），我們將邁向：
 **【Day 27】邊界與例外處理：網路中斷、麥克風異常與模型降級機制**。
