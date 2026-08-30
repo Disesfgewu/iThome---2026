@@ -228,8 +228,11 @@ async def submit_user_answer_stream(req: AnswerSubmitRequest):
                     chunk_payload = json.dumps({"text": token, "done": False}, ensure_ascii=False)
                     yield f"data: {chunk_payload}\n\n"
         except Exception as e:
-            error_payload = json.dumps({"text": f" [流式生成中斷: {str(e)}]", "done": False}, ensure_ascii=False)
-            yield f"data: {error_payload}\n\n"
+            from app.services.fallback_service import fallback_service
+            fallback_q = fallback_service.get_fallback_question(session["target_major"], len(session["transcript_turns"]) + 1)
+            accumulated_text = fallback_q
+            chunk_payload = json.dumps({"text": fallback_q, "done": False}, ensure_ascii=False)
+            yield f"data: {chunk_payload}\n\n"
 
         # Finalize turn
         clean_question = gemma_client._strip_thinking_blocks(accumulated_text)

@@ -17,14 +17,21 @@ export default function SetupPage({ sessionData, setSessionData, onStartIntervie
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
+    if (!file) return;
     setIsScanning(true);
-    const profile = await uploadResumeApi(file, targetSchool, targetGroup, targetMajor);
-    setUploadedFileName(profile.fileName);
-    setSessionData((prev) => ({
-      ...prev,
-      extractedProfile: profile
-    }));
-    setIsScanning(false);
+    try {
+      const profile = await uploadResumeApi(file, targetSchool, targetGroup, targetMajor);
+      setUploadedFileName(profile.fileName);
+      setSessionData((prev) => ({
+        ...prev,
+        extractedProfile: profile
+      }));
+    } catch (err) {
+      console.error('File upload failed:', err);
+      alert('檔案解析失敗或格式損壞（請確認上傳有效的 PDF 備審資料）。系統已自動為您切換為純文字簡歷模式！');
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleStart = async () => {

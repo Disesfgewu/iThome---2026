@@ -27,7 +27,13 @@ export default function InterviewPage({ sessionData, setSessionData, onFinishInt
   useEffect(() => {
     sttEngineRef.current = new SpeechToTextEngine(
       (text) => { if (text.trim()) setCandidateAnswer(text); },
-      (err)  => { console.warn('STT Error:', err); setIsRecording(false); },
+      (err)  => {
+        console.warn('STT Error:', err);
+        setIsRecording(false);
+        if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture') {
+          alert('麥克風存取權限被拒絕或裝置無回應。系統已自動為您切換為純文字打字模式！');
+        }
+      },
       ()     => { setIsRecording(false); }
     );
     // Stop TTS on unmount

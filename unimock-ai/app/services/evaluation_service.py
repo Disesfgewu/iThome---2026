@@ -24,43 +24,57 @@ class EvaluationService:
         """
         Executes Gemma-4-31B scoring evaluation and overall strategic report generation.
         """
-        # 1. Invoke Gemma-4-31B with scoring_evaluation prompt
-        scoring_text = await gemma_client.invoke_with_system_prompt(
-            prompt_name="scoring_evaluation",
-            user_input="",
-            target_major=target_major,
-            transcript=transcript_text
-        )
+        try:
+            # 1. Invoke Gemma-4-31B with scoring_evaluation prompt
+            scoring_text = await gemma_client.invoke_with_system_prompt(
+                prompt_name="scoring_evaluation",
+                user_input="",
+                target_major=target_major,
+                transcript=transcript_text
+            )
 
-        # 2. Invoke Gemma-4-31B with overall_analysis prompt
-        overall_text = await gemma_client.invoke_with_system_prompt(
-            prompt_name="overall_analysis",
-            user_input="",
-            target_school=target_school,
-            target_major=target_major,
-            candidate_profile=candidate_profile_text,
-            transcript=transcript_text,
-            aggregated_scores=scoring_text
-        )
+            # 2. Invoke Gemma-4-31B with overall_analysis prompt
+            overall_text = await gemma_client.invoke_with_system_prompt(
+                prompt_name="overall_analysis",
+                user_input="",
+                target_school=target_school,
+                target_major=target_major,
+                candidate_profile=candidate_profile_text,
+                transcript=transcript_text,
+                aggregated_scores=scoring_text
+            )
 
-        # 3. Extract radar chart scores, strengths, and improvements
-        radar_scores = self.parse_radar_scores(scoring_text)
-        insights = self.parse_strengths_and_improvements(scoring_text, target_major)
-        question_diagnoses = self.generate_turn_diagnoses(transcript_turns or [], target_major)
+            # 3. Extract radar chart scores, strengths, and improvements
+            radar_scores = self.parse_radar_scores(scoring_text)
+            insights = self.parse_strengths_and_improvements(scoring_text, target_major)
+            question_diagnoses = self.generate_turn_diagnoses(transcript_turns or [], target_major)
 
-        avg_dimension_score = sum(radar_scores.values()) / max(len(radar_scores), 1)
-        overall_score = round(avg_dimension_score * 10, 1)
+            avg_dimension_score = sum(radar_scores.values()) / max(len(radar_scores), 1)
+            overall_score = round(avg_dimension_score * 10, 1)
 
-        return {
-            "session_id": session_id,
-            "overall_score": overall_score,
-            "radar_scores": radar_scores,
-            "strengths": insights["strengths"],
-            "improvements": insights["improvements"],
-            "question_diagnoses": question_diagnoses,
-            "scoring_evaluation_text": scoring_text,
-            "overall_strategic_report": overall_text
-        }
+            return {
+                "session_id": session_id,
+                "overall_score": overall_score,
+                "radar_scores": radar_scores,
+                "strengths": insights["strengths"],
+                "improvements": insights["improvements"],
+                "question_diagnoses": question_diagnoses,
+                "scoring_evaluation_text": scoring_text,
+                "overall_strategic_report": overall_text
+            }
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"LLM Evaluation failed ({e}), falling back to FallbackService.")
+            from app.services.fallback_service import fallback_service
+            fallback_res = fallback_service.get_fallback_evaluation_report(
+                target_school=target_school,
+                target_major=target_major,
+                transcript_turns=transcript_turns or []
+            )
+            fallback_res["session_id"] = session_id
+            fallback_res["scoring_evaluation_text"] = "系統自動降級評測報告"
+            fallback_res["overall_strategic_report"] = fallback_res["overall_feedback"]
+            return fallback_res
 
     def generate_turn_diagnoses(
         self,
