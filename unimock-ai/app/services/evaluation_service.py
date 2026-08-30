@@ -83,6 +83,7 @@ class EvaluationService:
     ) -> List[Dict[str, Any]]:
         diagnoses = []
         is_business_or_emba = any(kw in target_major for kw in ["EMBA", "MBA", "企管", "資管", "金融", "國企", "財金", "商", "管理", "行銷", "商學"])
+        is_medical = any(kw in target_major for kw in ["醫學", "中醫", "牙醫", "護理", "藥學", "臨床", "醫藥"])
 
         for idx, turn in enumerate(transcript_turns):
             turn_num = turn.get("turn", idx + 1)
@@ -98,6 +99,30 @@ class EvaluationService:
                     f"透過系統性規劃與資源整合，成功克服時程壓力，最終達成具體成效，"
                     f"這也是我決定報考貴所、深化理論與實務結合能力的核心動機。"
                 )
+            elif is_medical:
+                if turn_num == 1:
+                    weakness = f"自我介紹表達真誠，建議加強說明臨床同理心、醫學倫理思維，以及選擇報考 {target_major} 的核心動機。"
+                    improved = (
+                        f"教授您好，我是報考{target_major}的考生。在修習生物與化學專業基礎的過程中，"
+                        f"我曾於醫療機構擔任志工，近距離觀察臨床醫師在面對急診同理陪伴與醫療決策時的溝通條理。"
+                        f"在專題實驗中，我透過嚴謹的數據分析與反覆驗證克服實驗瓶頸，體會到醫學研究的科學精神。"
+                        f"我期許自己能在貴系紮實的臨床與前瞻醫療資源中成長，成為兼具精準醫療專業與人文關懷的臨床醫師。"
+                    )
+                elif turn_num == 2:
+                    weakness = "情境應變答覆得體，若能進一步補充具體溝通步驟與醫病權衡（Empathy & Decision Trade-off）細節，說服力將更加卓越。"
+                    improved = (
+                        f"教授您好，當面對醫療決策衝突或高壓臨床情境時，我認為首要原則是保持冷靜並建立雙向溝通。"
+                        f"在過往團隊協作與志工經驗中，我曾遇到成員意見分歧的情形，當時我先傾聽各方關切點，"
+                        f"並透過客觀數據與結構化分析提出調和方案，最終順利化解爭議。"
+                        f"這段經歷讓我體會到，優秀的醫師不僅需要紮實的醫學知識，更需要強大的抗壓韌性與傾聽同理能力。"
+                    )
+                else:
+                    weakness = f"前瞻視角豐富，若能連結智慧醫療 AI 輔助診斷與 {target_major} 特色研究領域，講述深度將更臻完善。"
+                    improved = (
+                        f"教授您好，對於醫學領域的前瞻發展，我特別關注智慧醫療 AI 輔助診斷與基因個體化治療的結合。"
+                        f"我希望在進入{target_major}後，除修習臨床基礎醫學，也能積極參與前瞻醫學研究中心之專案，"
+                        f"探究如何利用大數據提升早期病灶篩檢精準度，同時維護醫療倫理與病患隱私，為未來臨床智慧醫療貢獻心力。"
+                    )
             elif is_business_or_emba:
                 if turn_num == 1:
                     weakness = f"自我介紹表達沉著，建議加強說明高階管理視角、資產與風險管理決策，以及報考 {target_major} 的核心動機。"
