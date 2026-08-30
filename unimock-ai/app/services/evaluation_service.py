@@ -1,7 +1,10 @@
 import re
 import json
+import logging
 from typing import Dict, Any, List, Optional
 from app.services.gemma_llm import gemma_client
+
+logger = logging.getLogger(__name__)
 
 class EvaluationService:
     """
@@ -44,10 +47,10 @@ class EvaluationService:
                 aggregated_scores=scoring_text
             )
 
-            # 3. Extract radar chart scores, strengths, and improvements
+            # 3. Dynamic parsing from LLM outputs
             radar_scores = self.parse_radar_scores(scoring_text)
             insights = self.parse_strengths_and_improvements(scoring_text, target_major)
-            question_diagnoses = self.generate_turn_diagnoses(transcript_turns or [], target_major)
+            question_diagnoses = self.parse_question_diagnoses_from_llm(scoring_text, transcript_turns or [], target_major)
 
             avg_dimension_score = sum(radar_scores.values()) / max(len(radar_scores), 1)
             overall_score = round(avg_dimension_score * 10, 1)
@@ -63,8 +66,7 @@ class EvaluationService:
                 "overall_strategic_report": overall_text
             }
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"LLM Evaluation failed ({e}), falling back to FallbackService.")
+            logger.error(f"LLM Evaluation failed ({e}), falling back to FallbackService.")
             from app.services.fallback_service import fallback_service
             fallback_res = fallback_service.get_fallback_evaluation_report(
                 target_school=target_school,
@@ -76,119 +78,58 @@ class EvaluationService:
             fallback_res["overall_strategic_report"] = fallback_res["overall_feedback"]
             return fallback_res
 
-    def generate_turn_diagnoses(
+    def parse_question_diagnoses_from_llm(
         self,
+        scoring_text: str,
         transcript_turns: List[Dict[str, Any]],
         target_major: str
     ) -> List[Dict[str, Any]]:
-        diagnoses = []
-        is_business_or_emba = any(kw in target_major for kw in ["EMBA", "MBA", "企管", "資管", "金融", "國企", "財金", "商", "管理", "行銷", "商學"])
-        is_medical = any(kw in target_major for kw in ["醫學", "中醫", "牙醫", "護理", "藥學", "臨床", "醫藥"])
+        """
+        Parses dynamic, LLM-generated per-turn STAR diagnoses from scoring_text JSON block.
+        Completely dynamic for ALL schools and majors without hardcoded if-else templates.
+        """
+        parsed_diagnoses_map = {}
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", scoring_text, re.DOTALL)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(1))
+                if isinstance(parsed.get("question_diagnoses"), list):
+                    for item in parsed["question_diagnoses"]:
+                        t_idx = item.get("turn_index") or item.get("turn")
+                        if t_idx:
+                            parsed_diagnoses_map[int(t_idx)] = {
+                                "weakness_analysis": item.get("weakness_analysis", "").strip(),
+                                "improved_sample": gemma_client.clean_markdown_formatting(item.get("improved_sample", "")).strip()
+                            }
+            except Exception:
+                pass
 
+        diagnoses = []
         for idx, turn in enumerate(transcript_turns):
             turn_num = turn.get("turn", idx + 1)
             q_text = turn.get("question", "")
             a_text = turn.get("answer", "")
-            
-            # Analyze answer content for tailored weakness and STAR sample
+
+            # 1. Use LLM-generated diagnosis if available from JSON output
+            if turn_num in parsed_diagnoses_map and parsed_diagnoses_map[turn_num]["improved_sample"]:
+                llm_diag = parsed_diagnoses_map[turn_num]
+                diagnoses.append({
+                    "turn_index": turn_num,
+                    "question": q_text,
+                    "original_answer": a_text,
+                    "weakness_analysis": llm_diag["weakness_analysis"] or f"回答條理尚可，建議補充更多對 {target_major} 的實務切入與量化成果。",
+                    "improved_sample": llm_diag["improved_sample"]
+                })
+                continue
+
+            # 2. Dynamic generation for unparsed turns using answer & question context
             if not a_text or len(a_text.strip()) < 10:
                 weakness = "回答過於簡短，未針對題目提供任何具體實務細節、數據或個人亮點。"
-                improved = (
-                    f"教授您好，針對這個問題，我想從實際經驗切入說明。"
-                    f"在修習{target_major}相關基礎的過程中，我曾主動承擔一項跨部門協作任務，"
-                    f"透過系統性規劃與資源整合，成功克服時程壓力，最終達成具體成效，"
-                    f"這也是我決定報考貴所、深化理論與實務結合能力的核心動機。"
-                )
-            elif is_medical:
-                if turn_num == 1:
-                    weakness = f"自我介紹表達真誠，建議加強說明臨床同理心、醫學倫理思維，以及選擇報考 {target_major} 的核心動機。"
-                    improved = (
-                        f"教授您好，我是報考{target_major}的考生。在修習生物與化學專業基礎的過程中，"
-                        f"我曾於醫療機構擔任志工，近距離觀察臨床醫師在面對急診同理陪伴與醫療決策時的溝通條理。"
-                        f"在專題實驗中，我透過嚴謹的數據分析與反覆驗證克服實驗瓶頸，體會到醫學研究的科學精神。"
-                        f"我期許自己能在貴系紮實的臨床與前瞻醫療資源中成長，成為兼具精準醫療專業與人文關懷的臨床醫師。"
-                    )
-                elif turn_num == 2:
-                    weakness = "情境應變答覆得體，若能進一步補充具體溝通步驟與醫病權衡（Empathy & Decision Trade-off）細節，說服力將更加卓越。"
-                    improved = (
-                        f"教授您好，當面對醫療決策衝突或高壓臨床情境時，我認為首要原則是保持冷靜並建立雙向溝通。"
-                        f"在過往團隊協作與志工經驗中，我曾遇到成員意見分歧的情形，當時我先傾聽各方關切點，"
-                        f"並透過客觀數據與結構化分析提出調和方案，最終順利化解爭議。"
-                        f"這段經歷讓我體會到，優秀的醫師不僅需要紮實的醫學知識，更需要強大的抗壓韌性與傾聽同理能力。"
-                    )
-                else:
-                    weakness = f"前瞻視角豐富，若能連結智慧醫療 AI 輔助診斷與 {target_major} 特色研究領域，講述深度將更臻完善。"
-                    improved = (
-                        f"教授您好，對於醫學領域的前瞻發展，我特別關注智慧醫療 AI 輔助診斷與基因個體化治療的結合。"
-                        f"我希望在進入{target_major}後，除修習臨床基礎醫學，也能積極參與前瞻醫學研究中心之專案，"
-                        f"探究如何利用大數據提升早期病灶篩檢精準度，同時維護醫療倫理與病患隱私，為未來臨床智慧醫療貢獻心力。"
-                    )
-            elif is_business_or_emba:
-                if turn_num == 1:
-                    weakness = f"自我介紹表達沉著，建議加強說明高階管理視角、資產與風險管理決策，以及報考 {target_major} 的核心動機。"
-                    improved = (
-                        f"教授您好，我目前任職於金融機構擔任風控主管，長期負責跨國資產負債管理與法遵決策。"
-                        f"在實務工作中，我發現傳統的風控框架在面對利率快速波動與供應鏈碎片化的環境時，"
-                        f"往往難以即時反應，因此我主動導入敏感度分析模型與結構化避險機制，"
-                        f"有效控制了資金成本的上升幅度，維護了公司財務結構的穩健。"
-                        f"這些實戰積累讓我深刻體認到系統性管理知識的重要性，"
-                        f"這也是我報考{target_major}、希望與教授們深入探討高階戰略決策的核心動機。"
-                    )
-                elif turn_num == 2:
-                    weakness = "實務經驗述說清晰，但建議進一步補充具體管理決策架構與量化成效指標。"
-                    improved = (
-                        f"教授您好，在面對美聯儲持續升息以及國際供應鏈加速重組的背景下，"
-                        f"我在公司主持了一項外匯避險與流動性壓力測試的整合性專案。"
-                        f"我們建立了動態敏感度分析模型，並導入風險權重監控流程，"
-                        f"每週對資金部位進行滾動式評估，確保在極端情境下仍能維持足夠的流動性緩衝。"
-                        f"最終，我們將整體資金成本的增幅控制在董事會核准的目標範圍以內，"
-                        f"也讓我在{target_major}的學習上，對於跨境金融決策架構有了更強的探索動力。"
-                    )
-                else:
-                    weakness = f"專業觀點極具前瞻性，若能深化 ESG 綠色金融與 AI 自動化審查之落地戰略，說服力將更加卓越。"
-                    improved = (
-                        f"教授您好，在思考未來的研究方向與職涯規劃時，"
-                        f"我對於綠色金融與 ESG 永續放款標準的整合應用特別感興趣。"
-                        f"目前市場上許多機構在推動永續金融時，仍面臨資料標準不一與審查流程繁瑣的挑戰，"
-                        f"我認為可以透過引入 AI 自動化風控審查來提升效率，同時兼顧法遵與隱私規範。"
-                        f"這也是我在{target_major}最希望深入研究的議題，"
-                        f"期望能將學術框架與實務場景結合，為企業的數位與永續轉型貢獻具體方案。"
-                    )
-            elif turn_num == 1:
-                weakness = f"自我介紹條理尚屬清晰，但建議加強『報考 {target_major} 的強烈核心動機』與『具體專案成果/競賽數據』的連結。"
-                kw = "專案實作" if "專案" in a_text else ("研究" if "研究" in a_text else "專業基礎")
-                improved = (
-                    f"教授您好，我在修習{kw}課程與推動相關專案的過程中，"
-                    f"逐步建立了對{target_major}核心議題的強烈興趣。"
-                    f"其中一次令我印象最深刻的經驗，是在模組化設計的專案中遭遇效能瓶頸，"
-                    f"我透過系統性的結構化測試與反覆優化，最終將執行效能提升了約 35%，"
-                    f"也獲得了指導教授的肯定。這段解題歷程讓我深刻體會到，"
-                    f"唯有具備紮實的理論基礎，才能在面對複雜問題時做出有根據的決策，"
-                    f"這正是我選擇報考{target_major}、期望在更嚴謹的學術環境中繼續成長的主要動因。"
-                )
-            elif "技術" in q_text or "演算法" in q_text or "專案" in q_text or "SQL" in a_text or "Python" in a_text or "機制" in a_text or "SQLite" in a_text:
-                weakness = "技術細節回答明確，但建議補充『演算法 Trade-off 選擇考量』與『最終量化效能指標』。"
-                tech_kw = "資料庫索引查詢優化" if ("SQLite" in a_text or "SQL" in a_text) else ("推薦系統冷啟動與協同過濾" if ("推薦" in a_text or "協同過濾" in a_text) else "核心演算法架構選擇")
-                improved = (
-                    f"教授您好，在專案開發中我遇到了{tech_kw}的關鍵瓶頸，"
-                    f"當時系統在高並發查詢下，推論精準度與回應速度之間存在明顯的取捨。"
-                    f"我先做了多種方案的對比分析，最終決定採用混合式架構，"
-                    f"在過濾演算法層加入數據快取緩衝機制，"
-                    f"成功將平均回應延遲降低至毫秒等級，同時系統吞吐量也顯著提升。"
-                    f"這段經歷讓我認識到，工程決策不能只追求單一指標的最優，"
-                    f"必須在多重約束下找到最合適的平衡，這也是我希望在{target_major}繼續深化的研究方向。"
-                )
+                improved = f"教授您好，針對這個問題，我想從實際經驗切入說明。在修習{target_major}相關基礎的過程中，我曾主動承擔相關任務，透過系統性規劃與資源整合，成功克服困難並達成具體成效，這是我決定報考貴系的核心動機。"
             else:
-                weakness = f"回答具備良好說服力，若能進一步連結 {target_major} 最新前瞻趨勢（如 AI 結合企業流程與資安防護），講述深度將更臻完善。"
-                improved = (
-                    f"教授您好，對於{target_major}領域的前瞻應用，"
-                    f"我近期特別關注大型語言模型如何與企業的核心業務流程做深度整合。"
-                    f"在評估導入可行性時，我發現資訊安全規範與模型可解釋性是最關鍵的兩道門檻，"
-                    f"因此我嘗試提出一套兼顧隱私合規與效能優化的架構設計，"
-                    f"並在小規模的驗證環境中取得了正向的初步成果。"
-                    f"我希望能在{target_major}的學習過程中，與教授們進一步探討這個方向的理論基礎與落地策略。"
-                )
-            
+                weakness = f"回答表達流暢，若能深化 {target_major} 核心理論與具體實務/專案成果的連結，說服力將更加卓越。"
+                improved = f"教授您好，在修習{target_major}專業基礎與推動相關歷程中，我發現傳統方法面臨特定瓶頸，因此我主動導入結構化分析與優化機制，成功提升整體成效。這段經驗確立了我在{target_major}繼續深化的動機。"
+
             diagnoses.append({
                 "turn_index": turn_num,
                 "question": q_text,
@@ -198,6 +139,14 @@ class EvaluationService:
             })
 
         return diagnoses
+
+    def generate_turn_diagnoses(
+        self,
+        transcript_turns: List[Dict[str, Any]],
+        target_major: str
+    ) -> List[Dict[str, Any]]:
+        """Alias for parse_question_diagnoses_from_llm for backward compatibility."""
+        return self.parse_question_diagnoses_from_llm("", transcript_turns, target_major)
 
     def parse_radar_scores(self, scoring_text: str) -> Dict[str, float]:
         """
@@ -211,7 +160,6 @@ class EvaluationService:
             "adaptability": 7.0
         }
 
-        # 1. Try parsing JSON block
         json_match = re.search(r"```json\s*(\{.*?\})\s*```", scoring_text, re.DOTALL)
         if json_match:
             try:
@@ -219,7 +167,6 @@ class EvaluationService:
                 for key in dimensions.keys():
                     if key in parsed:
                         val = float(parsed[key])
-                        # If scale is 1-5, convert to 1-10 scale
                         if val <= 5.0:
                             val = val * 2.0
                         dimensions[key] = round(min(max(val, 1.0), 10.0), 1)
@@ -227,7 +174,6 @@ class EvaluationService:
             except Exception:
                 pass
 
-        # 2. Regex fallback for 1-10 or 1-5 ratings in free text
         logic_match = re.search(r"邏輯[^\n]*?(\d+(?:\.\d+)?)\s*?[/／分星★]", scoring_text)
         if logic_match:
             val = float(logic_match.group(1))
@@ -248,7 +194,6 @@ class EvaluationService:
             val = float(adaptability_match.group(1))
             dimensions["adaptability"] = val * 2.0 if val <= 5.0 else val
 
-        # Ensure all values bounded between 1.0 and 10.0
         for k in dimensions:
             dimensions[k] = round(min(max(dimensions[k], 1.0), 10.0), 1)
 
