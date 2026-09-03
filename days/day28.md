@@ -90,15 +90,15 @@ async def stream_interview_question(session_id: str):
 
 ## 5. 瀏覽器 Agent 實機自動化測試與驗證
 
-我們透過 **Browser Subagent** 針對頂尖校系「**國立臺灣大學 · 資訊電機學群 · 資訊工程學系**」進行完整 3 輪面試實測，驗證 100% LLM 動態評測與自然口語示範：
+我們透過 **Browser Subagent** 針對頂尖校系「**中國醫藥大學 · 醫藥衛生學群 · 醫學系**」進行完整 3 輪面試實測，驗證 100% LLM 動態評測與自然口語示範：
 
 ### 5.1 報告頁面頂部（雷達圖與執行摘要）
 
-![NTU CS Report Top](images/day28/03_ntu_cs_report_top.png)
+![CMU Medicine Report Top](images/day28/03_cmu_medicine_report_top.png)
 
-### 5.2 資工系 STAR 對答覆盤與 100% LLM 動態口語重構示範
+### 5.2 醫學系 STAR 對答覆盤與 100% LLM 動態口語重構示範
 
-![NTU CS Report STAR Bottom](images/day28/04_ntu_cs_report_bottom_star.png)
+![CMU Medicine Report STAR Bottom](images/day28/04_cmu_medicine_report_bottom_star.png)
 
 ### 5.3 多格式診斷報告匯出彈窗 (Export Options Modal)
 
