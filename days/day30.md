@@ -10,7 +10,7 @@
 - **階段二（Day 6–10）：** 向量庫 Embedding、LangChain Gemma 封裝、RAG 檢索器與 PDF 備審特徵萃取。
 - **階段三（Day 11–20）：** 跨科系教授 Persona 引擎、四階段狀態機、蘇格拉底式追問、STAR 評測大腦與 Pytest 端到端驗收。
 - **階段四（Day 21–28）：** 前後端 API 串接、SSE 串流打字機、Web Speech STT/TTS 語音互動與雷達圖視覺化。
-- **階段五（Day 29–30）：** 真實高中生實測、Demo 展示與開源總結。
+- **階段五（Day 29–30）：** 高中生 Persona 模擬實測、端到端實機 Demo 影音展示與開源總結。
 
 ---
 
@@ -18,7 +18,7 @@
 
 專案原始碼已全數開源至 GitHub：
 
-- **Repository:** `https://github.com/your-username/UniMock-AI`
+- **Repository:** [https://github.com/Disesfgewu/iThome---2026](https://github.com/Disesfgewu/iThome---2026)
 - **License:** MIT License
 
 未來我們預計擴充：
@@ -26,3 +26,4 @@
 2. 提供多國語言推甄與外商求職面試擬真模組。
 
 感謝這 30 天大家一路的支持與陪伴！讓我們繼續用 AI 賦能教育，打造公平、客製化且充滿愛與引導的未來教育體系！
+
