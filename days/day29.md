@@ -96,9 +96,13 @@ def parse_question_diagnoses_from_llm(
 
 ## 5. 瀏覽器 Agent 實機 Demo 影片與步驟截圖展示
 
-### 5.1 端到端實機模擬面試與診斷報告操作演示影片 (WebP Animation Demo)
+### 5.1 端到端實機模擬面試與診斷報告操作演示 (真實實機操作加速錄影 GIF & MP4)
 
-![NKNU SE Interview Demo Animation](images/day29/day29_nknu_se_demo.webp)
+> 💡 **操作演示說明**：本段展示由瀏覽器 Agent 實際模擬高雄中學林同學，從輸入目標校系（高師大軟管系）、啟動面試艙、即時逐題打字作答三輪、至生成 88 分多維雷達圖、逐題展開 STAR 覆盤與開啟診斷書匯出彈窗之**真實全流程實機錄影**。
+
+![NKNU SE Interview Accelerated Demo GIF](images/day29/day29_nknu_se_demo.gif)
+
+- 🎬 **完整高畫質實機操作錄影 (1280x720 MP4 格式)**：[點此下載或於 GitHub 播放完整操作影片 `day29_nknu_se_demo.mp4`](images/day29/day29_nknu_se_demo.mp4)
 
 ---
 
