@@ -1,6 +1,6 @@
-# 【Day 29】真實場景端到端驗收：高中生備審模擬實測與 Demo 影片展示
+# 【Day 29】場景端到端驗收：高中生備審模擬實測與 Demo 影片展示
 
-今天我們邀請真實的高中生面試者（高雄中學數理實驗班林同學），帶著完整的學習歷程與專案簡歷，針對目標校系「**國立高雄師範大學 · 軟體工程與管理學系**」進行 **UniMock AI** 全流程端到端實測，並展示完整瀏覽器 Agent 操作影片與多維評測診斷報告！
+今天我們由 **Browser Subagent** 模擬扮演一位高中生面試考生（設定為高雄中學數理實驗班林同學之虛擬 Persona），帶著完整的學習歷程與專案簡歷設定，針對目標校系「**國立高雄師範大學 · 軟體工程與管理學系**」進行 **UniMock AI** 全流程端到端實測，並展示完整瀏覽器 Agent 操作影片與多維評測診斷報告！
 
 ---
 
@@ -11,11 +11,13 @@
 
 ---
 
-## 2. 真實高中生備審簡歷背景 (Candidate Profile)
+## 2. 模擬高中生備審簡歷設定 (Candidate Profile - 虛構 Persona)
 
-- **面試考生：** 林同學（國立高雄中學 數理實驗班）
+> ⚠️ **重要說明**：本實測所使用之考生姓名、學校與專案經歷皆為**測試設計之虛擬模擬情境（Simulated Persona）**，並無邀請真實受訪者參與。
+
+- **面試考生設定：** 林同學（虛構 Persona：國立高雄中學 數理實驗班）
 - **目標校系：** 國立高雄師範大學 · 資訊電機學群 · 軟體工程與管理學系
-- **專業檢定與技能：**
+- **專業檢定與技能設定：**
   - APCS 大學程式設計先修檢定：**觀念題 5 級分 / 實作題 4 級分**
   - 熟悉 Node.js、PostgreSQL、React 與 Redis 快取架構
 - **代表專案成果：**
@@ -94,15 +96,19 @@ def parse_question_diagnoses_from_llm(
 
 ---
 
-## 5. 瀏覽器 Agent 實機 Demo 影片與步驟截圖展示
+## 5. 瀏覽器 Agent 實機 Demo 操作影片與 GitHub 連結
 
-### 5.1 端到端實機模擬面試與診斷報告操作演示 (真實實機操作加速錄影 GIF & MP4)
+### 5.1 端到端實機全流程操作影片 (完整涵蓋三大階段)
 
-> 💡 **操作演示說明**：本段展示由瀏覽器 Agent 實際模擬高雄中學林同學，從輸入目標校系（高師大軟管系）、啟動面試艙、即時逐題打字作答三輪、至生成 88 分多維雷達圖、逐題展開 STAR 覆盤與開啟診斷書匯出彈窗之**真實全流程實機錄影**。
+> 💡 **操作演示說明**：本展示影片由 Playwright 瀏覽器 Agent 自動化進行實機端到端操作，真實記錄三大核心階段：
+> 1. **階段一【校系設定】**：輸入「國立高雄師範大學」與「軟體工程與管理學系」，載入備審經歷並啟動面試艙。
+> 2. **階段二【面試艙問答】**：流暢呈現 Q1、Q2、Q3 三輪即時文字作答與面試官題目串流。
+> 3. **階段三【評測報告與匯出】**：呈現 Gemma LLM 生成之評測報告、動態雷達圖、依序展開三題 STAR 弱點剖析與重構示範，並展示 Markdown/PDF 匯出彈窗。
 
-![NKNU SE Interview Accelerated Demo GIF](images/day29/day29_nknu_se_demo.gif)
-
-- 🎬 **完整高畫質實機操作錄影 (1280x720 MP4 格式)**：[點此下載或於 GitHub 播放完整操作影片 `day29_nknu_se_demo.mp4`](images/day29/day29_nknu_se_demo.mp4)
+#### 🎬 實機操作影片 GitHub 連結：
+- 📺 **[點此直接於 GitHub 線上觀看完整實機操作影片 (MP4)](https://github.com/Disesfgewu/iThome---2026/blob/main/days/images/day29/day29_nknu_se_demo.mp4)**
+- 📥 **[點此直接下載原始高畫質 MP4 影片檔 (Raw Download)](https://raw.githubusercontent.com/Disesfgewu/iThome---2026/main/days/images/day29/day29_nknu_se_demo.mp4)**
+- 📁 本地儲存庫相對路徑：[`days/images/day29/day29_nknu_se_demo.mp4`](images/day29/day29_nknu_se_demo.mp4)
 
 ---
 
@@ -132,6 +138,7 @@ def parse_question_diagnoses_from_llm(
 
 ## 6. 本日總結與明天預告
 
-今天我們透過 **Browser Subagent** 模擬高雄中學林同學的真實備審，成功驗證了 **UniMock AI** 在「**國立高雄師範大學 軟體工程與管理學系**」的端到端實測全流程！系統發揮了高達 88 分的高分評測，並由 Gemma LLM 動態生成完全切合軟軟學系特質的 STAR 高分口語重構示範！
+今天我們透過 **Browser Subagent** 模擬高中生林同學之虛構備審 Persona，成功驗證了 **UniMock AI** 在「**國立高雄師範大學 軟體工程與管理學系**」的端到端實測全流程！系統完整展現了自校系設定、即時問答、到產出 88 分之多維雷達圖、STAR 逐題口語示範與報告匯出功能，並已上傳完整操作影片至 GitHub。
 
 明天 **【Day 30】**，將是我們 30 天鐵人賽的完賽終點站：**30 天全系統架構總復盤、GitHub 開源釋出與 AI 智慧教育未來展望**！
+
